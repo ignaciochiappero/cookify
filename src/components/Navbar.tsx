@@ -30,12 +30,20 @@ export default function Navbar() {
               Inicio
             </Link>
             {session && (
-              <Link 
-                href="/preferences" 
-                className="text-gray-700 dark:text-gray-300 hover:text-green-600 dark:hover:text-green-400 transition-colors"
-              >
-                Mis Preferencias
-              </Link>
+              <>
+                <Link 
+                  href="/preferences" 
+                  className="text-gray-700 dark:text-gray-300 hover:text-green-600 dark:hover:text-green-400 transition-colors"
+                >
+                  Mis Preferencias
+                </Link>
+                <Link 
+                  href="/recipes" 
+                  className="text-gray-700 dark:text-gray-300 hover:text-green-600 dark:hover:text-green-400 transition-colors"
+                >
+                  Mis Recetas
+                </Link>
+              </>
             )}
             {isAdmin && (
               <Link 

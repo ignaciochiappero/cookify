@@ -3,6 +3,7 @@
 import { useSession } from 'next-auth/react';
 import { useEffect, useState } from 'react';
 import { Food } from '@/types/food';
+import { RecipeIngredient } from '@/types/recipe';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import Navbar from '@/components/Navbar';
 
@@ -19,6 +20,8 @@ export default function Preferences() {
   const [allFoods, setAllFoods] = useState<Food[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [generatingRecipe, setGeneratingRecipe] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (session) {
@@ -29,6 +32,7 @@ export default function Preferences() {
   const fetchData = async () => {
     try {
       setLoading(true);
+      setError(null);
       
       // Obtener todas las verduras
       const foodsResponse = await fetch('/api/food');
@@ -36,6 +40,8 @@ export default function Preferences() {
       
       if (foodsResult.success) {
         setAllFoods(foodsResult.data || []);
+      } else {
+        setError('Error al cargar los ingredientes');
       }
 
       // Obtener preferencias del usuario
@@ -44,9 +50,12 @@ export default function Preferences() {
       
       if (prefsResult.success) {
         setPreferences(prefsResult.data || []);
+      } else {
+        setError('Error al cargar las preferencias');
       }
-    } catch (error) {
-      console.error('Error fetching data:', error);
+    } catch (err) {
+      console.error('Error fetching data:', err);
+      setError('Error de conexión al cargar los datos');
     } finally {
       setLoading(false);
     }
@@ -103,14 +112,86 @@ export default function Preferences() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
-      </div>
+      <ProtectedRoute>
+        <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
+        </div>
+      </ProtectedRoute>
+    );
+  }
+
+  if (error) {
+    return (
+      <ProtectedRoute>
+        <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+          <Navbar />
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-6">
+              <h2 className="text-lg font-semibold text-red-800 dark:text-red-200 mb-2">
+                Error al cargar los datos
+              </h2>
+              <p className="text-red-600 dark:text-red-300 mb-4">{error}</p>
+              <button
+                onClick={fetchData}
+                className="bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-md transition-colors duration-200"
+              >
+                Reintentar
+              </button>
+            </div>
+          </div>
+        </div>
+      </ProtectedRoute>
     );
   }
 
   const getPreferenceForFood = (foodId: string) => {
     return preferences.find(p => p.foodId === foodId);
+  };
+
+  const getSelectedIngredients = (): RecipeIngredient[] => {
+    return preferences
+      .filter(p => p.isAvailable)
+      .map(p => ({
+        id: p.food.id,
+        name: p.food.name,
+        image: p.food.image
+      }));
+  };
+
+  const generateRecipe = async () => {
+    const selectedIngredients = getSelectedIngredients();
+    
+    if (selectedIngredients.length === 0) {
+      alert('Por favor selecciona al menos un ingrediente para generar una receta');
+      return;
+    }
+
+    try {
+      setGeneratingRecipe(true);
+      
+      const response = await fetch('/api/recipes/generate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ingredients: selectedIngredients
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        alert('¡Receta generada exitosamente! Revisa tu lista de recetas.');
+        // Aquí podrías redirigir a una página de recetas o mostrar la receta
+      } else {
+        alert(result.error || 'Error al generar la receta');
+      }
+    } catch {
+      alert('Error de conexión al generar la receta');
+    } finally {
+      setGeneratingRecipe(false);
+    }
   };
 
   return (
@@ -119,16 +200,58 @@ export default function Preferences() {
         <Navbar />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-            🛒 Mis Preferencias de Ingredientes
-          </h1>
-          <p className="text-gray-600 dark:text-gray-300">
-            Selecciona los ingredientes que tienes disponibles en tu cocina
-          </p>
+          <div className="flex justify-between items-start mb-4">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+                🛒 Mis Preferencias de Ingredientes
+              </h1>
+              <p className="text-gray-600 dark:text-gray-300">
+                Selecciona los ingredientes que tienes disponibles en tu cocina
+              </p>
+            </div>
+            <button
+              onClick={generateRecipe}
+              disabled={generatingRecipe || getSelectedIngredients().length === 0}
+              className="bg-purple-600 hover:bg-purple-700 disabled:bg-purple-400 text-white font-medium py-3 px-6 rounded-lg transition-colors duration-200 flex items-center gap-2"
+            >
+              {generatingRecipe ? (
+                <>
+                  <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Generando...
+                </>
+              ) : (
+                <>
+                  🤖 Generar Receta
+                </>
+              )}
+            </button>
+          </div>
+          
+          {getSelectedIngredients().length > 0 && (
+            <div className="bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-lg p-4 mb-6">
+              <p className="text-purple-800 dark:text-purple-200 text-sm">
+                <strong>Ingredientes seleccionados:</strong> {getSelectedIngredients().map(ing => ing.name).join(', ')}
+              </p>
+            </div>
+          )}
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {allFoods.map((food) => {
+        {allFoods.length === 0 ? (
+          <div className="text-center py-12">
+            <div className="text-6xl mb-4">🥬</div>
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+              No hay ingredientes disponibles
+            </h2>
+            <p className="text-gray-600 dark:text-gray-300 mb-6">
+              Contacta al administrador para agregar ingredientes
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {allFoods.map((food) => {
             const preference = getPreferenceForFood(food.id);
             const isAvailable = preference?.isAvailable || false;
 
@@ -175,18 +298,7 @@ export default function Preferences() {
                 </div>
               </div>
             );
-          })}
-        </div>
-
-        {allFoods.length === 0 && (
-          <div className="text-center py-12">
-            <div className="text-6xl mb-4">🥬</div>
-            <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
-              No hay verduras disponibles
-            </h2>
-            <p className="text-gray-600 dark:text-gray-300">
-              Ejecuta el seed para agregar verduras a la base de datos
-            </p>
+            })}
           </div>
         )}
         </div>

@@ -7,6 +7,7 @@ export default withAuth(
     const isAuth = !!token;
     const isAuthPage = req.nextUrl.pathname.startsWith('/auth');
     const isPreferencesPage = req.nextUrl.pathname.startsWith('/preferences');
+    const isRecipesPage = req.nextUrl.pathname.startsWith('/recipes');
     const isAdminPage = req.nextUrl.pathname.startsWith('/admin');
 
     // Si está en página de auth y ya está autenticado, redirigir al dashboard
@@ -15,7 +16,7 @@ export default withAuth(
     }
 
     // Si no está autenticado y trata de acceder a páginas protegidas
-    if (!isAuth && (isPreferencesPage || isAdminPage)) {
+    if (!isAuth && (isPreferencesPage || isRecipesPage || isAdminPage)) {
       return NextResponse.redirect(new URL('/auth/signin', req.url));
     }
 
@@ -31,6 +32,7 @@ export default withAuth(
       authorized: ({ token, req }) => {
         const isAuthPage = req.nextUrl.pathname.startsWith('/auth');
         const isPreferencesPage = req.nextUrl.pathname.startsWith('/preferences');
+        const isRecipesPage = req.nextUrl.pathname.startsWith('/recipes');
         const isAdminPage = req.nextUrl.pathname.startsWith('/admin');
 
         // Permitir acceso a páginas de auth sin token
@@ -39,7 +41,7 @@ export default withAuth(
         }
 
         // Requerir token para páginas protegidas
-        if (isPreferencesPage) {
+        if (isPreferencesPage || isRecipesPage) {
           return !!token;
         }
 

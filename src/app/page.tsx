@@ -1,9 +1,12 @@
 import FoodManager from '@/components/FoodManager';
+import Navbar from '@/components/Navbar';
 
 export default function Home() {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      <Navbar />
+      
       {/* Header */}
       <header className="bg-white dark:bg-gray-800 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
@@ -17,7 +20,7 @@ export default function Home() {
               </p>
             </div>
             <div className="text-sm text-gray-500 dark:text-gray-400">
-              CRUD con React Hook Form
+              CRUD con React Hook Form + Autenticación
             </div>
           </div>
         </div>

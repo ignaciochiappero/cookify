@@ -25,7 +25,7 @@ export default function FoodManager() {
       } else {
         setError(result.error || 'Error al cargar los datos');
       }
-    } catch (err) {
+    } catch {
       setError('Error de conexión');
     } finally {
       setLoading(false);
@@ -62,7 +62,7 @@ export default function FoodManager() {
       } else {
         alert(result.error || 'Error al eliminar');
       }
-    } catch (err) {
+    } catch {
       alert('Error de conexión');
     }
   };

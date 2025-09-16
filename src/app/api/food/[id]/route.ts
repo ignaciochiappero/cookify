@@ -4,10 +4,10 @@ import prisma from '@/lib/prisma';
 // GET /api/food/[id] - Obtener una verdura específica
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params;
+    const { id } = await params;
 
     const food = await prisma.food.findUnique({
       where: { id }
@@ -42,10 +42,10 @@ export async function GET(
 // PUT /api/food/[id] - Actualizar una verdura
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params;
+    const { id } = await params;
     const body = await request.json();
     const { name, description, image } = body;
 
@@ -107,10 +107,10 @@ export async function PUT(
 // DELETE /api/food/[id] - Eliminar una verdura
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params;
+    const { id } = await params;
 
     // Verificar que la verdura existe
     const existingFood = await prisma.food.findUnique({

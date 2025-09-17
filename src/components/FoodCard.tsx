@@ -66,7 +66,7 @@ export default function FoodCard({ food, onEdit, onDelete }: FoodCardProps) {
               <button
                 onClick={handleDelete}
                 disabled={isDeleting}
-                className="flex-1 bg-red-600 hover:bg-red-700 disabled:bg-red-400 text-white text-xs font-medium py-1.5 px-2 rounded transition-colors duration-200"
+                className="flex-1 bg-red-600 hover:bg-red-700 disabled:bg-red-300 disabled:text-red-100 text-white text-xs font-medium py-1.5 px-2 rounded transition-colors duration-200"
               >
                 {isDeleting ? '🗑️...' : '🗑️ Eliminar'}
               </button>

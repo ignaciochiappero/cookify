@@ -156,7 +156,7 @@ export default function FoodForm({ food, onSuccess, onCancel }: FoodFormProps) {
           <button
             type="submit"
             disabled={isSubmitting}
-            className="flex-1 bg-green-600 hover:bg-green-700 disabled:bg-green-400 text-white font-medium py-2 px-4 rounded-md transition-colors duration-200 flex items-center justify-center"
+            className="flex-1 bg-green-600 hover:bg-green-700 disabled:bg-green-300 disabled:text-green-100 text-white font-medium py-2 px-4 rounded-md transition-colors duration-200 flex items-center justify-center"
           >
             {isSubmitting ? (
               <>

@@ -212,7 +212,7 @@ export default function Preferences() {
             <button
               onClick={generateRecipe}
               disabled={generatingRecipe || getSelectedIngredients().length === 0}
-              className="bg-purple-600 hover:bg-purple-700 disabled:bg-purple-400 text-white font-medium py-3 px-6 rounded-lg transition-colors duration-200 flex items-center gap-2"
+              className="bg-purple-600 hover:bg-purple-700 disabled:bg-purple-300 disabled:text-purple-100 text-white font-medium py-3 px-6 rounded-lg transition-colors duration-200 flex items-center gap-2"
             >
               {generatingRecipe ? (
                 <>

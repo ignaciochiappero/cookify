@@ -14,7 +14,12 @@ import {
   Apple,
   Moon,
   Clock,
-  ChefHat
+  ChefHat,
+  Sparkles,
+  Trash2,
+  Edit,
+  RotateCcw,
+  Eye
 } from 'lucide-react';
 import { 
   MealCalendarItem, 
@@ -43,6 +48,16 @@ export default function MealCalendar({ recipes }: MealCalendarProps) {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingMeal, setEditingMeal] = useState<MealCalendarItem | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  
+  // Estados para el planificador inteligente
+  const [isSmartPlannerOpen, setIsSmartPlannerOpen] = useState(false);
+  const [selectedSlots, setSelectedSlots] = useState<Array<{date: Date, mealType: MealType}>>([]);
+  const [isGeneratingRecipes, setIsGeneratingRecipes] = useState(false);
+  
+  // Estados para el modal de detalles de receta
+  const [isRecipeDetailOpen, setIsRecipeDetailOpen] = useState(false);
+  const [selectedRecipeMeal, setSelectedRecipeMeal] = useState<MealCalendarItem | null>(null);
+  const [isRegeneratingRecipe, setIsRegeneratingRecipe] = useState(false);
   const [selectedMealType, setSelectedMealType] = useState<MealType | null>(null);
   const [formData, setFormData] = useState<CreateMealCalendarItem>({
     date: new Date(),
@@ -126,6 +141,232 @@ export default function MealCalendar({ recipes }: MealCalendarProps) {
     setEditingMeal(null);
     setIsFormOpen(false);
     setSelectedMealType(null);
+  };
+
+  // Funciones para el planificador inteligente
+  const toggleSlotSelection = (date: Date, mealType: MealType) => {
+    const existingIndex = selectedSlots.findIndex(
+      slot => slot.date.toISOString().split('T')[0] === date.toISOString().split('T')[0] && 
+              slot.mealType === mealType
+    );
+
+    if (existingIndex >= 0) {
+      // Remover slot si ya está seleccionado
+      setSelectedSlots(prev => prev.filter((_, index) => index !== existingIndex));
+    } else {
+      // Agregar slot si no está seleccionado
+      setSelectedSlots(prev => [...prev, { date, mealType }]);
+    }
+  };
+
+  const isSlotSelected = (date: Date, mealType: MealType) => {
+    return selectedSlots.some(
+      slot => slot.date.toISOString().split('T')[0] === date.toISOString().split('T')[0] && 
+              slot.mealType === mealType
+    );
+  };
+
+  const clearSelectedSlots = () => {
+    setSelectedSlots([]);
+  };
+
+  const generateBulkRecipes = async () => {
+    if (selectedSlots.length === 0) return;
+
+    setIsGeneratingRecipes(true);
+    try {
+      console.log('Iniciando generación masiva para slots:', selectedSlots);
+      
+      // Agrupar slots por tipo de comida para generar recetas más eficientemente
+      const slotsByMealType = selectedSlots.reduce((acc, slot) => {
+        if (!acc[slot.mealType]) {
+          acc[slot.mealType] = [];
+        }
+        acc[slot.mealType].push(slot);
+        return acc;
+      }, {} as Record<MealType, Array<{date: Date, mealType: MealType}>>);
+
+      console.log('Slots agrupados por tipo de comida:', slotsByMealType);
+
+      // Generar recetas para cada tipo de comida
+      for (const [mealType, slots] of Object.entries(slotsByMealType)) {
+        try {
+          console.log(`Generando receta para ${mealType} con ${slots.length} slots`);
+          
+          const response = await fetch('/api/recipes/generate-from-inventory', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              mealType: mealType as MealType,
+              servings: 4,
+              suggestIngredients: true
+            }),
+          });
+
+          console.log(`Respuesta para ${mealType}:`, response.status, response.ok);
+
+          if (response.ok) {
+            const responseData = await response.json();
+            console.log(`Datos de respuesta para ${mealType}:`, responseData);
+            
+            const recipe = responseData.recipe;
+            if (!recipe || !recipe.id) {
+              console.error(`No se pudo obtener la receta para ${mealType}:`, responseData);
+              continue;
+            }
+            
+            // Crear o actualizar entradas en el calendario para cada slot de este tipo de comida
+            for (const slot of slots) {
+              console.log(`Procesando entrada en calendario para ${slot.date} - ${slot.mealType}`);
+              
+              // Primero intentar crear una nueva entrada
+              const calendarResponse = await fetch('/api/meal-calendar', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  date: slot.date.toISOString(),
+                  mealType: slot.mealType,
+                  recipeId: recipe.id,
+                  notes: `Generado automáticamente por el Planificador Inteligente`
+                }),
+              });
+
+              if (calendarResponse.ok) {
+                console.log(`Entrada creada exitosamente para ${slot.date} - ${slot.mealType}`);
+              } else {
+                // Si falla porque ya existe, buscar la entrada existente y actualizarla
+                await calendarResponse.text();
+                console.log(`Entrada ya existe para ${slot.date} - ${slot.mealType}, actualizando...`);
+                
+                // Buscar la entrada existente en el array de meals
+                const existingMeal = meals.find(meal => {
+                  const mealDate = new Date(meal.date);
+                  return mealDate.toISOString().split('T')[0] === slot.date.toISOString().split('T')[0] && 
+                         meal.mealType === slot.mealType;
+                });
+
+                if (existingMeal) {
+                  // Actualizar la entrada existente
+                  const updateResponse = await fetch(`/api/meal-calendar/${existingMeal.id}`, {
+                    method: 'PUT',
+                    headers: {
+                      'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                      recipeId: recipe.id,
+                      notes: `Actualizado automáticamente por el Planificador Inteligente`
+                    }),
+                  });
+
+                  if (updateResponse.ok) {
+                    console.log(`Entrada actualizada exitosamente para ${slot.date} - ${slot.mealType}`);
+                  } else {
+                    console.error(`Error actualizando entrada para ${slot.date} - ${slot.mealType}:`, await updateResponse.text());
+                  }
+                } else {
+                  console.error(`No se encontró entrada existente para actualizar ${slot.date} - ${slot.mealType}`);
+                }
+              }
+            }
+          } else {
+            const errorText = await response.text();
+            console.error(`Error en API de generación para ${mealType}:`, errorText);
+          }
+        } catch (error) {
+          console.error(`Error generando recetas para ${mealType}:`, error);
+        }
+      }
+
+      // Recargar las comidas y limpiar selección
+      console.log('Recargando comidas...');
+      await fetchMeals();
+      clearSelectedSlots();
+      setIsSmartPlannerOpen(false);
+      
+    } catch (error) {
+      console.error('Error en generación masiva:', error);
+    } finally {
+      setIsGeneratingRecipes(false);
+    }
+  };
+
+  // Funciones para el modal de detalles de receta
+  const openRecipeDetail = (meal: MealCalendarItem) => {
+    setSelectedRecipeMeal(meal);
+    setIsRecipeDetailOpen(true);
+  };
+
+  const closeRecipeDetail = () => {
+    setSelectedRecipeMeal(null);
+    setIsRecipeDetailOpen(false);
+  };
+
+  const handleEditRecipe = (meal: MealCalendarItem) => {
+    closeRecipeDetail();
+    handleEdit(meal);
+  };
+
+  const handleDeleteRecipe = async (meal: MealCalendarItem) => {
+    try {
+      const response = await fetch(`/api/meal-calendar/${meal.id}`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        await fetchMeals();
+        closeRecipeDetail();
+      }
+    } catch (error) {
+      console.error('Error eliminando receta:', error);
+    }
+  };
+
+  const handleRegenerateRecipe = async (meal: MealCalendarItem) => {
+    if (!meal.recipeId) return;
+
+    setIsRegeneratingRecipe(true);
+    try {
+      // Generar nueva receta con IA
+      const response = await fetch('/api/recipes/generate-from-inventory', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          mealType: meal.mealType,
+          servings: 4,
+          suggestIngredients: true
+        }),
+      });
+
+      if (response.ok) {
+        const responseData = await response.json();
+        const newRecipe = responseData.recipe;
+        
+        // Actualizar la entrada del calendario con la nueva receta
+        await fetch(`/api/meal-calendar/${meal.id}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            recipeId: newRecipe.id,
+            notes: `Regenerado automáticamente con IA - ${new Date().toLocaleDateString()}`
+          }),
+        });
+
+        await fetchMeals();
+        closeRecipeDetail();
+      }
+    } catch (error) {
+      console.error('Error regenerando receta:', error);
+    } finally {
+      setIsRegeneratingRecipe(false);
+    }
   };
 
   const openFormForMeal = (date: Date, mealType: MealType) => {
@@ -226,16 +467,112 @@ export default function MealCalendar({ recipes }: MealCalendarProps) {
             </p>
           </div>
         </div>
-        <motion.button
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          onClick={() => setIsFormOpen(true)}
-          className="flex items-center space-x-2 bg-primary-600 hover:bg-primary-700 text-white font-medium py-3 px-6 rounded-xl transition-all duration-200 shadow-medium"
-        >
-          <Plus className="w-5 h-5" />
-          <span>Agregar Comida</span>
-        </motion.button>
+        <div className="flex items-center space-x-3">
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => {
+              if (isSmartPlannerOpen) {
+                // Si ya está en modo selección, generar recetas
+                generateBulkRecipes();
+              } else {
+                // Activar modo de selección
+                setIsSmartPlannerOpen(true);
+              }
+            }}
+            disabled={isGeneratingRecipes}
+            className={`flex items-center space-x-2 font-medium py-3 px-6 rounded-xl transition-all duration-200 shadow-medium ${
+              isSmartPlannerOpen
+                ? selectedSlots.length > 0
+                  ? 'bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white'
+                  : 'bg-gradient-to-r from-gray-400 to-gray-500 text-gray-200 cursor-not-allowed'
+                : 'bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white'
+            }`}
+          >
+            {isGeneratingRecipes ? (
+              <>
+                <Clock className="w-5 h-5 animate-spin" />
+                <span>Generando...</span>
+              </>
+            ) : isSmartPlannerOpen ? (
+              <>
+                <Sparkles className="w-5 h-5" />
+                <span>Generar Recetas ({selectedSlots.length})</span>
+              </>
+            ) : (
+              <>
+                <ChefHat className="w-5 h-5" />
+                <span>Planificador Inteligente</span>
+              </>
+            )}
+          </motion.button>
+          
+          {isSmartPlannerOpen && (
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => {
+                setIsSmartPlannerOpen(false);
+                clearSelectedSlots();
+              }}
+              className="flex items-center space-x-2 bg-gray-500 hover:bg-gray-600 text-white font-medium py-3 px-6 rounded-xl transition-all duration-200 shadow-medium"
+            >
+              <X className="w-5 h-5" />
+              <span>Cancelar</span>
+            </motion.button>
+          )}
+          
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => setIsFormOpen(true)}
+            className="flex items-center space-x-2 bg-primary-600 hover:bg-primary-700 text-white font-medium py-3 px-6 rounded-xl transition-all duration-200 shadow-medium"
+          >
+            <Plus className="w-5 h-5" />
+            <span>Agregar Comida</span>
+          </motion.button>
+        </div>
       </div>
+
+      {/* Smart Planner Mode Indicator */}
+      {isSmartPlannerOpen && (
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -20 }}
+          className="bg-gradient-to-r from-purple-50 to-purple-100 border border-purple-200 rounded-xl p-4 mb-6"
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <div className="p-2 bg-purple-200 rounded-lg">
+                <Sparkles className="w-5 h-5 text-purple-600" />
+              </div>
+              <div>
+                <h4 className="font-semibold text-purple-900">
+                  Modo Planificador Inteligente
+                </h4>
+                <p className="text-sm text-purple-700">
+                  Haz clic en los slots de comida para seleccionarlos. 
+                  {selectedSlots.length > 0 && ` ${selectedSlots.length} slots seleccionados.`}
+                </p>
+              </div>
+            </div>
+            {selectedSlots.length > 0 && (
+              <div className="flex items-center space-x-2">
+                <span className="text-sm font-medium text-purple-800">
+                  {selectedSlots.length} seleccionados
+                </span>
+                <button
+                  onClick={clearSelectedSlots}
+                  className="p-1 text-purple-600 hover:text-purple-800 hover:bg-purple-200 rounded transition-colors"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+          </div>
+        </motion.div>
+      )}
 
       {/* Calendar Navigation */}
       <div className="bg-white rounded-2xl p-6 shadow-soft border border-primary-200">
@@ -318,17 +655,27 @@ export default function MealCalendar({ recipes }: MealCalendarProps) {
                       key={mealType}
                       whileHover={{ scale: 1.02 }}
                       className={`text-xs p-2 rounded-lg cursor-pointer transition-all duration-200 ${
-                        meal 
-                          ? meal.isCompleted 
-                            ? 'bg-green-100 text-green-800 border border-green-200' 
-                            : 'bg-primary-100 text-primary-800 border border-primary-200'
-                          : 'bg-gray-50 text-gray-400 hover:bg-gray-100 hover:text-gray-600 border border-gray-200'
+                        isSmartPlannerOpen && isSlotSelected(day.date, mealType)
+                          ? 'bg-purple-200 text-purple-800 border-2 border-purple-400 ring-2 ring-purple-200'
+                          : meal 
+                            ? meal.isCompleted 
+                              ? 'bg-green-100 text-green-800 border border-green-200' 
+                              : 'bg-primary-100 text-primary-800 border border-primary-200'
+                            : 'bg-gray-50 text-gray-400 hover:bg-gray-100 hover:text-gray-600 border border-gray-200'
                       }`}
                       onClick={() => {
-                        if (meal) {
-                          handleEdit(meal);
-                        } else if (day.isCurrentMonth) {
-                          openFormForMeal(day.date, mealType);
+                        if (isSmartPlannerOpen) {
+                          // Modo planificador inteligente: seleccionar/deseleccionar slots
+                          if (day.isCurrentMonth) {
+                            toggleSlotSelection(day.date, mealType);
+                          }
+                        } else {
+                          // Modo normal: mostrar detalles de receta o agregar comida
+                          if (meal) {
+                            openRecipeDetail(meal);
+                          } else if (day.isCurrentMonth) {
+                            openFormForMeal(day.date, mealType);
+                          }
                         }
                       }}
                     >
@@ -498,6 +845,207 @@ export default function MealCalendar({ recipes }: MealCalendarProps) {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Recipe Detail Modal */}
+      <AnimatePresence>
+        {isRecipeDetailOpen && selectedRecipeMeal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+            onClick={closeRecipeDetail}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white rounded-2xl p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center space-x-3">
+                  <div className="p-2 bg-primary-100 rounded-lg">
+                    <Eye className="w-6 h-6 text-primary-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-gray-900">
+                      {selectedRecipeMeal.recipe?.title || selectedRecipeMeal.customMealName || 'Comida Programada'}
+                    </h3>
+                    <p className="text-sm text-gray-600">
+                      {new Date(selectedRecipeMeal.date).toLocaleDateString('es-ES', { 
+                        weekday: 'long', 
+                        day: 'numeric', 
+                        month: 'long' 
+                      })} - {MEAL_TYPE_LABELS[selectedRecipeMeal.mealType]}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={closeRecipeDetail}
+                  className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-all duration-200"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Recipe Details */}
+              {selectedRecipeMeal.recipe && (
+                <div className="space-y-6">
+                  {/* Recipe Info */}
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <h4 className="font-semibold text-gray-900 mb-3">Información de la Receta</h4>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="flex items-center space-x-2">
+                        <Clock className="w-4 h-4 text-gray-600" />
+                        <span className="text-sm text-gray-700">
+                          {selectedRecipeMeal.recipe.cookingTime} min
+                        </span>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <ChefHat className="w-4 h-4 text-gray-600" />
+                        <span className="text-sm text-gray-700">
+                          {selectedRecipeMeal.recipe.difficulty}
+                        </span>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Utensils className="w-4 h-4 text-gray-600" />
+                        <span className="text-sm text-gray-700">
+                          {selectedRecipeMeal.recipe.servings} porciones
+                        </span>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <CheckCircle className={`w-4 h-4 ${selectedRecipeMeal.isCompleted ? 'text-green-600' : 'text-gray-400'}`} />
+                        <span className={`text-sm ${selectedRecipeMeal.isCompleted ? 'text-green-700' : 'text-gray-700'}`}>
+                          {selectedRecipeMeal.isCompleted ? 'Completada' : 'Pendiente'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Description */}
+                  {selectedRecipeMeal.recipe.description && (
+                    <div>
+                      <h4 className="font-semibold text-gray-900 mb-2">Descripción</h4>
+                      <p className="text-gray-700 text-sm leading-relaxed">
+                        {selectedRecipeMeal.recipe.description}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Ingredients */}
+                  {selectedRecipeMeal.recipe.ingredients && (
+                    <div>
+                      <h4 className="font-semibold text-gray-900 mb-3">Ingredientes</h4>
+                      <div className="flex flex-wrap gap-2">
+                        {(() => {
+                          try {
+                            const ingredients = JSON.parse(selectedRecipeMeal.recipe.ingredients);
+                            return ingredients.map((ingredient: { name: string }, index: number) => (
+                              <span
+                                key={index}
+                                className="px-3 py-1 bg-primary-100 text-primary-800 text-sm rounded-full border border-primary-200"
+                              >
+                                {ingredient.name}
+                              </span>
+                            ));
+                          } catch {
+                            return (
+                              <span className="text-gray-600 text-sm">
+                                {selectedRecipeMeal.recipe.ingredients}
+                              </span>
+                            );
+                          }
+                        })()}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Instructions */}
+                  {selectedRecipeMeal.recipe.instructions && (
+                    <div>
+                      <h4 className="font-semibold text-gray-900 mb-3">Instrucciones</h4>
+                      <div className="bg-gray-50 rounded-lg p-4">
+                        <p className="text-gray-800 text-sm leading-relaxed whitespace-pre-line">
+                          {selectedRecipeMeal.recipe.instructions}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Notes */}
+                  {selectedRecipeMeal.notes && (
+                    <div>
+                      <h4 className="font-semibold text-gray-900 mb-2">Notas</h4>
+                      <p className="text-gray-700 text-sm bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                        {selectedRecipeMeal.notes}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Custom Meal */}
+              {!selectedRecipeMeal.recipe && selectedRecipeMeal.customMealName && (
+                <div className="space-y-4">
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <h4 className="font-semibold text-gray-900 mb-2">Comida Personalizada</h4>
+                    <p className="text-gray-700">{selectedRecipeMeal.customMealName}</p>
+                  </div>
+                  {selectedRecipeMeal.notes && (
+                    <div>
+                      <h4 className="font-semibold text-gray-900 mb-2">Notas</h4>
+                      <p className="text-gray-700 text-sm bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                        {selectedRecipeMeal.notes}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Action Buttons */}
+              <div className="flex space-x-3 pt-6 border-t border-gray-200">
+                <button
+                  onClick={() => handleEditRecipe(selectedRecipeMeal)}
+                  className="flex-1 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-md transition-colors flex items-center justify-center space-x-2"
+                >
+                  <Edit className="w-4 h-4" />
+                  <span>Editar</span>
+                </button>
+                
+                {selectedRecipeMeal.recipe && (
+                  <button
+                    onClick={() => handleRegenerateRecipe(selectedRecipeMeal)}
+                    disabled={isRegeneratingRecipe}
+                    className="flex-1 px-4 py-2 bg-purple-600 hover:bg-purple-700 disabled:bg-purple-300 disabled:text-purple-100 text-white rounded-md transition-colors flex items-center justify-center space-x-2"
+                  >
+                    {isRegeneratingRecipe ? (
+                      <>
+                        <Clock className="w-4 h-4 animate-spin" />
+                        <span>Regenerando...</span>
+                      </>
+                    ) : (
+                      <>
+                        <RotateCcw className="w-4 h-4" />
+                        <span>Regenerar con IA</span>
+                      </>
+                    )}
+                  </button>
+                )}
+                
+                <button
+                  onClick={() => handleDeleteRecipe(selectedRecipeMeal)}
+                  className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md transition-colors flex items-center justify-center space-x-2"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  <span>Eliminar</span>
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
     </div>
   );
 }

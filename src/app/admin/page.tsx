@@ -12,11 +12,128 @@ import {
   Save, 
   X,
   Users,
-  Sparkles
+  Sparkles,
+  // Iconos de comida disponibles
+  Apple,
+  Banana,
+  Carrot,
+  Cherry,
+  Coffee,
+  Cookie,
+  Egg,
+  Fish,
+  Grape,
+  IceCream,
+  Milk,
+  Pizza,
+  Sandwich,
+  Utensils,
+  Wine,
+  Beef,
+  Croissant,
+  Drumstick,
+  Hamburger,
+  IceCream2,
+  Salad,
+  Soup,
+  Wheat,
+  // Iconos adicionales
+  Leaf,
+  Droplets,
+  Package,
+  Zap,
+  Circle,
+  Square,
+  Triangle,
+  Heart,
+  Star,
+  Sun,
+  Moon,
+  Cloud,
+  Flame,
+  Snowflake,
+  Flower,
+  TreePine,
+  Bug,
+  Bird,
+  Fish as FishIcon
 } from 'lucide-react';
 import { Food } from '@/types/food';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import Navbar from '@/components/Navbar';
+import { getLucideIcon } from '@/lib/iconUtils';
+
+// Iconos de comida disponibles
+const foodIcons = [
+  { name: 'Apple', component: Apple },
+  { name: 'Banana', component: Banana },
+  { name: 'Carrot', component: Carrot },
+  { name: 'Cherry', component: Cherry },
+  { name: 'Coffee', component: Coffee },
+  { name: 'Cookie', component: Cookie },
+  { name: 'Egg', component: Egg },
+  { name: 'Fish', component: Fish },
+  { name: 'Grape', component: Grape },
+  { name: 'IceCream', component: IceCream },
+  { name: 'Milk', component: Milk },
+  { name: 'Pizza', component: Pizza },
+  { name: 'Sandwich', component: Sandwich },
+  { name: 'Utensils', component: Utensils },
+  { name: 'Wine', component: Wine },
+  { name: 'Beef', component: Beef },
+  { name: 'Croissant', component: Croissant },
+  { name: 'Drumstick', component: Drumstick },
+  { name: 'FishIcon', component: FishIcon },
+  { name: 'Hamburger', component: Hamburger },
+  { name: 'IceCream2', component: IceCream2 },
+  { name: 'Salad', component: Salad },
+  { name: 'Soup', component: Soup },
+  { name: 'Wheat', component: Wheat },
+  { name: 'Leaf', component: Leaf },
+  { name: 'Droplets', component: Droplets },
+  { name: 'Package', component: Package },
+  { name: 'Zap', component: Zap },
+  { name: 'Circle', component: Circle },
+  { name: 'Square', component: Square },
+  { name: 'Triangle', component: Triangle },
+  { name: 'Heart', component: Heart },
+  { name: 'Star', component: Star },
+  { name: 'Sun', component: Sun },
+  { name: 'Moon', component: Moon },
+  { name: 'Cloud', component: Cloud },
+  { name: 'Flame', component: Flame },
+  { name: 'Snowflake', component: Snowflake },
+  { name: 'Flower', component: Flower },
+  { name: 'TreePine', component: TreePine },
+  { name: 'Bug', component: Bug },
+  { name: 'Bird', component: Bird }
+];
+
+// Opciones de categorías
+const categories = [
+  { value: 'VEGETABLE', label: 'Vegetal' },
+  { value: 'FRUIT', label: 'Fruta' },
+  { value: 'MEAT', label: 'Carne' },
+  { value: 'DAIRY', label: 'Lácteo' },
+  { value: 'GRAIN', label: 'Grano' },
+  { value: 'LIQUID', label: 'Líquido' },
+  { value: 'SPICE', label: 'Especia' },
+  { value: 'OTHER', label: 'Otro' }
+];
+
+// Opciones de unidades
+const units = [
+  { value: 'PIECE', label: 'Piezas' },
+  { value: 'GRAM', label: 'Gramos' },
+  { value: 'KILOGRAM', label: 'Kilogramos' },
+  { value: 'LITER', label: 'Litros' },
+  { value: 'MILLILITER', label: 'Mililitros' },
+  { value: 'CUP', label: 'Tazas' },
+  { value: 'TABLESPOON', label: 'Cucharadas' },
+  { value: 'TEASPOON', label: 'Cucharaditas' },
+  { value: 'POUND', label: 'Libras' },
+  { value: 'OUNCE', label: 'Onzas' }
+];
 
 export default function Admin() {
   const { data: session } = useSession();
@@ -28,7 +145,10 @@ export default function Admin() {
   const [formData, setFormData] = useState({
     name: '',
     description: '',
-    image: ''
+    image: '',
+    icon: 'ChefHat',
+    category: 'VEGETABLE' as 'VEGETABLE' | 'FRUIT' | 'MEAT' | 'DAIRY' | 'GRAIN' | 'LIQUID' | 'SPICE' | 'OTHER',
+    unit: 'PIECE' as 'PIECE' | 'GRAM' | 'KILOGRAM' | 'LITER' | 'MILLILITER' | 'CUP' | 'TABLESPOON' | 'TEASPOON' | 'POUND' | 'OUNCE'
   });
 
   useEffect(() => {
@@ -96,7 +216,10 @@ export default function Admin() {
     setFormData({
       name: food.name,
       description: food.description,
-      image: food.image
+      image: food.image,
+      icon: food.icon || 'ChefHat',
+      category: food.category,
+      unit: food.unit
     });
     setIsFormOpen(true);
   };
@@ -125,7 +248,14 @@ export default function Admin() {
   };
 
   const resetForm = () => {
-    setFormData({ name: '', description: '', image: '' });
+    setFormData({ 
+      name: '', 
+      description: '', 
+      image: '', 
+      icon: 'ChefHat', 
+      category: 'VEGETABLE', 
+      unit: 'PIECE' 
+    });
     setEditingFood(null);
     setIsFormOpen(false);
   };
@@ -274,16 +404,29 @@ export default function Admin() {
                 >
                   <div className="text-center">
                     <div className="w-16 h-16 mx-auto mb-4 bg-primary-100 rounded-2xl flex items-center justify-center">
-                      <ChefHat className="w-8 h-8 text-primary-600" />
+                      {(() => {
+                        const IconComponent = getLucideIcon(food.icon || 'ChefHat');
+                        return <IconComponent className="w-8 h-8 text-primary-600" />;
+                      })()}
                     </div>
                     
                     <h3 className="font-semibold text-gray-900 mb-2">
                       {food.name}
                     </h3>
                     
-                    <p className="text-sm text-gray-700 mb-4 line-clamp-2">
+                    <p className="text-sm text-gray-700 mb-2 line-clamp-2">
                       {food.description}
                     </p>
+                    
+                    {/* Category and Unit Info */}
+                    <div className="flex items-center justify-center space-x-3 mb-4 text-xs">
+                      <span className="bg-primary-100 text-primary-700 px-2 py-1 rounded-full">
+                        {categories.find(c => c.value === food.category)?.label || 'Vegetal'}
+                      </span>
+                      <span className="bg-gray-100 text-gray-600 px-2 py-1 rounded-full">
+                        {units.find(u => u.value === food.unit)?.label || 'Piezas'}
+                      </span>
+                    </div>
                     
                     <div className="flex space-x-2">
                       <motion.button
@@ -405,6 +548,67 @@ export default function Admin() {
                       className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all duration-200"
                       placeholder="https://ejemplo.com/imagen.jpg"
                     />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Icono
+                    </label>
+                    <div className="grid grid-cols-6 gap-2 max-h-32 overflow-y-auto border border-gray-200 rounded-lg p-3">
+                      {foodIcons.map((iconData) => {
+                        const IconComponent = iconData.component;
+                        return (
+                          <button
+                            key={iconData.name}
+                            type="button"
+                            onClick={() => setFormData({ ...formData, icon: iconData.name })}
+                            className={`p-2 rounded-lg border-2 transition-all duration-200 ${
+                              formData.icon === iconData.name
+                                ? 'border-primary-500 bg-primary-50'
+                                : 'border-gray-200 hover:border-gray-300'
+                            }`}
+                          >
+                            <IconComponent className="w-5 h-5 text-gray-600" />
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Categoría
+                      </label>
+                      <select
+                        value={formData.category}
+                        onChange={(e) => setFormData({ ...formData, category: e.target.value as 'VEGETABLE' | 'FRUIT' | 'MEAT' | 'DAIRY' | 'GRAIN' | 'LIQUID' | 'SPICE' | 'OTHER' })}
+                        className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all duration-200"
+                      >
+                        {categories.map((category) => (
+                          <option key={category.value} value={category.value}>
+                            {category.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Unidad de Medida
+                      </label>
+                      <select
+                        value={formData.unit}
+                        onChange={(e) => setFormData({ ...formData, unit: e.target.value as 'PIECE' | 'GRAM' | 'KILOGRAM' | 'LITER' | 'MILLILITER' | 'CUP' | 'TABLESPOON' | 'TEASPOON' | 'POUND' | 'OUNCE' })}
+                        className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all duration-200"
+                      >
+                        {units.map((unit) => (
+                          <option key={unit.value} value={unit.value}>
+                            {unit.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
 
                   <div className="flex space-x-3 pt-4">

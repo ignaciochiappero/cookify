@@ -2,7 +2,7 @@
 
 ## 📋 Resumen Ejecutivo
 
-**Cookify** es una aplicación web moderna construida con Next.js 15 que permite a los usuarios gestionar su inventario de ingredientes, planificar comidas en un calendario, y generar recetas personalizadas utilizando la API de Google Gemini. La aplicación incluye un sistema completo de autenticación, gestión de inventario con cantidades y unidades, calendario de comidas, y generación inteligente de recetas basada en ingredientes disponibles.
+**Cookify** es una aplicación web moderna construida con Next.js 15 que permite a los usuarios gestionar su inventario de ingredientes, planificar comidas en un calendario, y generar recetas personalizadas utilizando la API de Google Gemini. La aplicación incluye un sistema completo de autenticación, gestión de inventario con cantidades y unidades, calendario de comidas, generación inteligente de recetas, planificador inteligente masivo, sistema de reintentos para APIs sobrecargadas, y una interfaz moderna con iconos de Lucide React y animaciones Framer Motion.
 
 ## 🏗️ Arquitectura Técnica
 
@@ -11,13 +11,15 @@
 - **Backend**: Next.js API Routes
 - **Base de Datos**: PostgreSQL con Prisma ORM
 - **Autenticación**: NextAuth.js v4
-- **IA**: Google Gemini 1.5 Flash
-- **Estilos**: Tailwind CSS v4
+- **IA**: Google Gemini 1.5 Flash con sistema de reintentos
+- **Estilos**: Tailwind CSS v4 con configuración personalizada
 - **Validación**: Zod + React Hook Form
-- **Lenguaje**: TypeScript
+- **Lenguaje**: TypeScript con tipos estrictos
 - **Build**: Turbopack
-- **Iconos**: Lucide React
-- **Animaciones**: Framer Motion
+- **Iconos**: Lucide React (40+ iconos de comida)
+- **Animaciones**: Framer Motion con efectos sutiles
+- **Celebraciones**: React Confetti para feedback visual
+- **Gestión de Estado**: React Hooks con useCallback optimizado
 
 ### Estructura del Proyecto
 ```
@@ -82,6 +84,7 @@ model Food {
   name        String
   description String
   image       String
+  icon        String?      // Icono de Lucide React
   category    FoodCategory @default(VEGETABLE)
   unit        FoodUnit     @default(PIECE)
   createdAt   DateTime     @default(now())
@@ -236,6 +239,9 @@ model VerificationToken { ... }
 - **API**: Google Generative AI SDK
 - **Prompt**: Optimizado para generar recetas en español
 - **Formato**: JSON estructurado
+- **Sistema de Reintentos**: 3 intentos con backoff exponencial
+- **Manejo de Errores**: Detección inteligente de sobrecarga de API
+- **Logging**: Sistema de logs detallado para debugging
 
 ### Flujos de Generación
 
@@ -263,6 +269,15 @@ model VerificationToken { ... }
    - Número de porciones solicitadas
    - Ingredientes adicionales sugeridos (si se solicita)
 6. La receta se guarda y puede ser programada en el calendario
+
+#### 3. Planificador Inteligente Masivo (Meal Calendar)
+1. Usuario activa el "Planificador Inteligente"
+2. Selecciona múltiples slots de comida en el calendario
+3. El sistema agrupa las selecciones por tipo de comida
+4. Genera recetas automáticamente para cada tipo de comida
+5. Asigna las recetas a los slots seleccionados
+6. Maneja automáticamente conflictos (reemplaza recetas existentes)
+7. Sistema de reintentos para manejar sobrecarga de API
 
 ### Prompts de Gemini
 
@@ -368,7 +383,10 @@ Responde en formato JSON con la siguiente estructura:
 - `POST /api/user/preferences` - Crear/actualizar preferencia
 
 ### Recetas
-- `GET /api/recipes` - Obtener recetas del usuario
+- `GET /api/recipes` - Obtener recetas del usuario (con paginación y filtros)
+- `GET /api/recipes/[id]` - Obtener receta específica
+- `PUT /api/recipes/[id]` - Actualizar receta
+- `DELETE /api/recipes/[id]` - Eliminar receta (con cascada en calendario)
 - `POST /api/recipes/generate` - Generar nueva receta con IA (básica)
 - `POST /api/recipes/generate-from-inventory` - Generar receta desde inventario (avanzada)
 
@@ -391,31 +409,43 @@ Responde en formato JSON con la siguiente estructura:
 - Credenciales de demo incluidas
 
 #### 3. Dashboard (`/dashboard`)
-- Lista de ingredientes disponibles
+- Lista de ingredientes disponibles con iconos de Lucide React
+- Selección de ingredientes con cantidades y unidades
 - Botones de selección en tiempo real
 - Botón "🤖 Generar Receta" prominente
 - Indicador visual de ingredientes seleccionados
 - Estados de carga y error
+- Modal de receta generada con confetti
 - Diseño moderno con tarjetas y animaciones
+- Gestión directa de inventario desde el dashboard
 
 #### 4. Meal Planner (`/meal-planner`)
 - **Pestaña Inventario**: Gestión de ingredientes con cantidades y unidades
-- **Pestaña Calendario**: Planificación de comidas por fecha y tipo
+- **Pestaña Calendario**: Planificación de comidas por fecha y tipo con planificador inteligente
 - **Pestaña Generador**: Creación de recetas desde inventario
 - Interfaz de pestañas con navegación fluida
 - Componentes especializados para cada funcionalidad
+- Planificador inteligente masivo para múltiples comidas
+- Sistema de reintentos automático para APIs sobrecargadas
 
 #### 5. Recetas (`/recipes`)
 - Lista de recetas generadas por el usuario
 - Tarjetas modernas con badges de ingredientes
 - Formato legible de instrucciones con iconos
 - Metadatos visuales (tiempo, dificultad, porciones)
+- Sistema de paginación (6 recetas por página)
+- Filtros por ingredientes con búsqueda en tiempo real
+- Búsqueda por nombre de receta con debounce
+- Edición y eliminación de recetas
 - Diseño responsive y atractivo
 
 #### 6. Administración (`/admin`)
 - Panel completo para administradores
 - Gestión CRUD de ingredientes
 - Modales para crear/editar ingredientes
+- Selector de iconos de Lucide React (40+ iconos de comida)
+- Categorización de ingredientes (8 categorías)
+- Unidades de medida específicas (10 unidades)
 - Información de sesión y estadísticas
 - Interfaz moderna con validaciones
 
@@ -456,6 +486,10 @@ Responde en formato JSON con la siguiente estructura:
 - Formulario para programar comidas
 - Visualización de comidas programadas
 - Navegación por meses
+- Planificador inteligente masivo
+- Modo de selección múltiple
+- Regeneración de recetas con IA
+- Edición y eliminación de comidas programadas
 
 #### RecipeGenerator
 - Generador avanzado de recetas desde inventario
@@ -505,15 +539,22 @@ GEMINI_API_KEY="tu-api-key-de-gemini-aqui"
 - **Usuario Demo**: `demo@cookify.com` / `demo123` (rol: USER)
 - **Admin Demo**: `admin@cookify.com` / `admin123` (rol: ADMIN)
 
-### Ingredientes Incluidos
-1. Tomate - Fruto rojo y jugoso, perfecto para ensaladas y salsas
-2. Cebolla - Bulbo aromático, base de muchos platos
-3. Ajo - Condimento esencial con sabor intenso
-4. Pimiento - Verdura colorida y dulce, rica en vitaminas
-5. Zanahoria - Raíz naranja, dulce y crujiente
-6. Papa - Tubérculo versátil, base de muchos platos
-7. Lechuga - Hoja verde fresca, perfecta para ensaladas
-8. Pepino - Verdura refrescante y acuosa
+### Ingredientes Incluidos (115 ingredientes)
+**Vegetales (25)**: Tomate, Cebolla, Ajo, Pimiento, Zanahoria, Papa, Lechuga, Pepino, Espinaca, Brócoli, Coliflor, Apio, Rábano, Remolacha, Calabacín, Berenjena, Champiñón, Puerro, Repollo, Col, Alcachofa, Espárrago, Rúcula, Endivia, Escarola
+
+**Frutas (20)**: Manzana, Banana, Naranja, Limón, Lima, Fresa, Uva, Melón, Sandía, Piña, Mango, Kiwi, Pera, Durazno, Ciruela, Cereza, Frambuesa, Arándano, Granada, Maracuyá
+
+**Carnes (15)**: Pollo, Carne de res, Cerdo, Cordero, Pavo, Pescado, Salmón, Atún, Camarón, Langosta, Cangrejo, Jamón, Tocino, Chorizo, Salchicha
+
+**Lácteos (10)**: Leche, Queso, Yogur, Mantequilla, Crema, Ricotta, Mozzarella, Cheddar, Parmesano, Feta
+
+**Granos (15)**: Arroz, Trigo, Avena, Quinoa, Cebada, Centeno, Maíz, Lentejas, Garbanzos, Frijoles, Soja, Chía, Linaza, Amaranto, Bulgur
+
+**Líquidos (10)**: Agua, Aceite de oliva, Vinagre, Vino, Cerveza, Café, Té, Jugo de naranja, Leche de almendras, Caldo de pollo
+
+**Especias (15)**: Sal, Pimienta, Orégano, Albahaca, Tomillo, Romero, Laurel, Canela, Nuez moscada, Clavo, Jengibre, Cúrcuma, Comino, Paprika, Pimentón
+
+**Otros (15)**: Huevo, Miel, Azúcar, Harina, Levadura, Polvo de hornear, Bicarbonato, Coco, Almendras, Nueces, Pasas, Dátiles, Aceitunas, Alcaparras, Mostaza
 
 ## 🚀 Funcionalidades Implementadas
 
@@ -546,23 +587,29 @@ GEMINI_API_KEY="tu-api-key-de-gemini-aqui"
    - Seguimiento de comidas completadas
    - Navegación por meses
 
-5. **Generación de Recetas con IA (Doble Sistema)**
+5. **Generación de Recetas con IA (Triple Sistema)**
    - **Sistema Básico**: Recetas desde ingredientes seleccionados
    - **Sistema Avanzado**: Recetas desde inventario con cantidades
+   - **Sistema Masivo**: Planificador inteligente para múltiples comidas
    - Integración con Google Gemini 1.5 Flash
+   - Sistema de reintentos automático (3 intentos con backoff exponencial)
    - Recetas personalizadas por tipo de comida
    - Sugerencias de ingredientes adicionales
    - Formato estructurado y legible
    - Almacenamiento en base de datos
+   - Manejo inteligente de sobrecarga de API
 
 6. **Interfaz de Usuario Moderna**
    - Diseño minimalista con Tailwind CSS v4
    - Animaciones sutiles con Framer Motion
-   - Iconos modernos con Lucide React
+   - Iconos modernos con Lucide React (40+ iconos de comida)
    - Responsive design completo
    - Estados de carga y error
    - Navegación intuitiva con pestañas
    - Glassmorphism y efectos visuales
+   - Sistema de confetti para celebraciones
+   - Modales modernos con animaciones
+   - Paginación y filtros avanzados
 
 7. **APIs RESTful Completas**
    - Endpoints para inventario y calendario
@@ -571,15 +618,20 @@ GEMINI_API_KEY="tu-api-key-de-gemini-aqui"
    - Autenticación en endpoints protegidos
    - Generación de recetas desde inventario
    - CRUD completo para todas las entidades
+   - Sistema de reintentos para APIs externas
+   - Logging detallado para debugging
+   - Paginación y filtros en endpoints
+   - Eliminación en cascada para integridad de datos
 
 ## 🔄 Flujos de Usuario
 
 ### Flujo Básico (Dashboard)
 1. **Registro/Login**: Usuario se registra o inicia sesión
-2. **Selección de Ingredientes**: Va a "Dashboard" y marca ingredientes disponibles
+2. **Selección de Ingredientes**: Va a "Dashboard" y marca ingredientes disponibles con cantidades
 3. **Generación de Receta**: Hace click en "🤖 Generar Receta"
-4. **Visualización**: Ve la receta generada en "Mis Recetas"
-5. **Gestión**: Puede generar más recetas con diferentes combinaciones
+4. **Celebración**: Ve la receta generada en modal con confetti
+5. **Visualización**: Ve la receta en "Mis Recetas" con paginación y filtros
+6. **Gestión**: Puede editar, eliminar o generar más recetas
 
 ### Flujo Avanzado (Meal Planner)
 1. **Registro/Login**: Usuario se registra o inicia sesión
@@ -587,7 +639,9 @@ GEMINI_API_KEY="tu-api-key-de-gemini-aqui"
 3. **Planificación**: Va a "Calendario" y programa comidas por fecha y tipo
 4. **Generación Inteligente**: Va a "Generador" y crea recetas basadas en inventario disponible
 5. **Programación**: Asigna recetas generadas a fechas específicas en el calendario
-6. **Seguimiento**: Marca comidas como completadas y gestiona su planificación semanal
+6. **Planificador Masivo**: Usa el "Planificador Inteligente" para generar múltiples recetas automáticamente
+7. **Seguimiento**: Marca comidas como completadas y gestiona su planificación semanal
+8. **Edición**: Edita o regenera recetas existentes con IA
 
 ## 🛡️ Seguridad Implementada
 
@@ -606,6 +660,10 @@ GEMINI_API_KEY="tu-api-key-de-gemini-aqui"
 - **Componentes optimizados** con React
 - **Lazy loading** de componentes
 - **Middleware eficiente** para protección de rutas
+- **Sistema de reintentos** para APIs externas
+- **Paginación** para listas grandes
+- **Debounce** en búsquedas para optimizar rendimiento
+- **useCallback** para evitar re-renders innecesarios
 
 ## 🧪 Testing y Calidad
 
@@ -614,6 +672,10 @@ GEMINI_API_KEY="tu-api-key-de-gemini-aqui"
 - **Validación de esquemas** con Zod
 - **Manejo de errores** robusto
 - **Estados de carga** en todas las operaciones
+- **Build exitoso** sin errores de TypeScript
+- **Linting limpio** sin warnings
+- **Validación de tipos** estricta
+- **Manejo de errores** en APIs externas
 
 ## 🚀 Deployment
 
@@ -687,12 +749,16 @@ Cookify es una aplicación completa y funcional que demuestra la integración ex
 - **Generación inteligente** de recetas basada en inventario disponible
 
 ### Características Destacadas
-- **Doble sistema de generación**: Básico (ingredientes) y Avanzado (inventario)
+- **Triple sistema de generación**: Básico (ingredientes), Avanzado (inventario) y Masivo (planificador inteligente)
 - **Planificación completa**: Desde inventario hasta calendario de comidas
 - **Interfaz moderna**: Diseño minimalista con glassmorphism y animaciones
 - **Responsive design**: Funciona perfectamente en todos los dispositivos
 - **Seguridad robusta**: Autenticación, roles y validación de datos
 - **Escalabilidad**: Arquitectura preparada para crecimiento
+- **Sistema de reintentos**: Manejo inteligente de APIs sobrecargadas
+- **Iconos dinámicos**: 40+ iconos de Lucide React para ingredientes
+- **Celebraciones visuales**: Confetti para feedback positivo
+- **Gestión avanzada**: Edición, eliminación y regeneración de recetas
 
 La aplicación está lista para producción y puede ser extendida con funcionalidades adicionales según las necesidades del negocio.
 
@@ -701,3 +767,43 @@ La aplicación está lista para producción y puede ser extendida con funcionali
 **Linting**: ✅ **LIMPIO**
 **TypeScript**: ✅ **SIN ERRORES**
 **Nuevas funcionalidades**: ✅ **IMPLEMENTADAS Y FUNCIONANDO**
+
+## 🆕 Funcionalidades Recientes Implementadas
+
+### ✅ Sistema de Reintentos para APIs
+- **3 intentos automáticos** con backoff exponencial
+- **Detección inteligente** de errores de sobrecarga (503)
+- **Logging detallado** para debugging
+- **Manejo robusto** de APIs externas
+
+### ✅ Planificador Inteligente Masivo
+- **Selección múltiple** de slots de comida
+- **Generación automática** de recetas por tipo de comida
+- **Manejo de conflictos** (reemplaza recetas existentes)
+- **Feedback visual** durante la generación
+
+### ✅ Sistema de Iconos Dinámicos
+- **40+ iconos** de Lucide React para ingredientes
+- **Selector visual** en panel de administración
+- **Compatibilidad** con emojis existentes
+- **Renderizado dinámico** en toda la aplicación
+
+### ✅ Gestión Avanzada de Recetas
+- **Edición in-line** de recetas
+- **Eliminación con cascada** en calendario
+- **Regeneración con IA** de recetas existentes
+- **Paginación y filtros** avanzados
+
+### ✅ Mejoras de UX/UI
+- **Sistema de confetti** para celebraciones
+- **Modales modernos** con animaciones
+- **Búsqueda en tiempo real** con debounce
+- **Estados de carga** mejorados
+- **Feedback visual** en todas las operaciones
+
+### ✅ Optimizaciones de Rendimiento
+- **useCallback** para evitar re-renders
+- **Paginación** para listas grandes
+- **Debounce** en búsquedas
+- **Lazy loading** de componentes
+- **Build optimizado** con Turbopack

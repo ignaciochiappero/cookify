@@ -32,6 +32,9 @@ export default function RecipeGenerator({ inventory, onRecipeGenerated }: Recipe
   });
   const [error, setError] = useState('');
 
+  // Asegurar que inventory sea siempre un array
+  const safeInventory = Array.isArray(inventory) ? inventory : [];
+
   const handleGenerate = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsGenerating(true);
@@ -288,17 +291,17 @@ export default function RecipeGenerator({ inventory, onRecipeGenerated }: Recipe
       {/* Inventory Summary */}
       <div className="bg-gray-50 rounded-2xl p-6">
         <h4 className="text-lg font-semibold text-gray-900 mb-4">
-          Ingredientes Disponibles ({inventory.length})
+          Ingredientes Disponibles ({safeInventory.length})
         </h4>
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
-          {inventory.slice(0, 8).map((item) => (
+          {safeInventory.slice(0, 8).map((item) => (
             <div key={item.id} className="text-sm text-gray-600 bg-white rounded-lg p-2">
               {item.food.name}
             </div>
           ))}
-          {inventory.length > 8 && (
+          {safeInventory.length > 8 && (
             <div className="text-sm text-gray-500 bg-white rounded-lg p-2 flex items-center justify-center">
-              +{inventory.length - 8} más
+              +{safeInventory.length - 8} más
             </div>
           )}
         </div>

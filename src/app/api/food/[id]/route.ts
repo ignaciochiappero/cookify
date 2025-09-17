@@ -39,7 +39,7 @@ export async function GET(
   }
 }
 
-// PUT /api/food/[id] - Actualizar una verdura
+// PUT /api/food/[id] - Actualizar un ingrediente
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -47,7 +47,7 @@ export async function PUT(
   try {
     const { id } = await params;
     const body = await request.json();
-    const { name, description, image } = body;
+    const { name, description, image, icon, category, unit } = body;
 
     // Validaciones básicas
     if (!name || !description) {
@@ -60,7 +60,7 @@ export async function PUT(
       );
     }
 
-    // Verificar que la verdura existe
+    // Verificar que el ingrediente existe
     const existingFood = await prisma.food.findUnique({
       where: { id }
     });
@@ -69,19 +69,22 @@ export async function PUT(
       return NextResponse.json(
         {
           success: false,
-          error: 'Verdura no encontrada'
+          error: 'Ingrediente no encontrado'
         },
         { status: 404 }
       );
     }
 
-    // Actualizar la verdura
+    // Actualizar el ingrediente
     const updatedFood = await prisma.food.update({
       where: { id },
       data: {
         name: name.trim(),
         description: description.trim(),
-        image: image || existingFood.image
+        image: image || existingFood.image,
+        icon: icon !== undefined ? icon : existingFood.icon,
+        category: category || existingFood.category,
+        unit: unit || existingFood.unit
       }
     });
 
@@ -89,11 +92,11 @@ export async function PUT(
       {
         success: true,
         data: updatedFood,
-        message: 'Verdura actualizada exitosamente'
+        message: 'Ingrediente actualizado exitosamente'
       }
     );
   } catch (error) {
-    console.error('Error al actualizar verdura:', error);
+    console.error('Error al actualizar ingrediente:', error);
     return NextResponse.json(
       {
         success: false,

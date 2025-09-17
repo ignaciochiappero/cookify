@@ -25,7 +25,10 @@ export async function GET() {
       }
     });
 
-    return NextResponse.json(inventory);
+    return NextResponse.json({
+      success: true,
+      data: inventory
+    });
   } catch (error) {
     console.error('Error al obtener inventario:', error);
     return NextResponse.json(
@@ -74,7 +77,10 @@ export async function POST(request: NextRequest) {
         }
       });
 
-      return NextResponse.json(updatedItem);
+      return NextResponse.json({
+        success: true,
+        data: updatedItem
+      });
     } else {
       // Crear nuevo item
       const newItem = await prisma.userIngredientInventory.create({
@@ -91,7 +97,10 @@ export async function POST(request: NextRequest) {
         }
       });
 
-      return NextResponse.json(newItem, { status: 201 });
+      return NextResponse.json({
+        success: true,
+        data: newItem
+      }, { status: 201 });
     }
   } catch (error) {
     console.error('Error al crear item en inventario:', error);

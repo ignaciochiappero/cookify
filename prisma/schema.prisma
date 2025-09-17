@@ -14,6 +14,7 @@ model Food {
   name String
   description String
   image String
+  icon String?
   category FoodCategory @default(VEGETABLE)
   unit FoodUnit @default(PIECE)
   createdAt DateTime @default(now())

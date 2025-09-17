@@ -56,11 +56,16 @@ export default function InventoryManager({ foods }: InventoryManagerProps) {
     try {
       const response = await fetch('/api/inventory');
       if (response.ok) {
-        const data = await response.json();
-        setInventory(data);
+        const result = await response.json();
+        if (result.success) {
+          setInventory(result.data || []);
+        } else {
+          setInventory([]);
+        }
       }
     } catch (error) {
       console.error('Error al cargar inventario:', error);
+      setInventory([]);
     } finally {
       setIsLoading(false);
     }

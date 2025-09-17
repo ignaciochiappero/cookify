@@ -27,11 +27,11 @@ export async function GET() {
   }
 }
 
-// POST /api/food - Crear una nueva verdura
+// POST /api/food - Crear un nuevo ingrediente
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { name, description, image } = body;
+    const { name, description, image, icon, category, unit } = body;
 
     // Validaciones básicas
     if (!name || !description) {
@@ -44,12 +44,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Crear la nueva verdura
+    // Crear el nuevo ingrediente
     const newFood = await prisma.food.create({
       data: {
         name: name.trim(),
         description: description.trim(),
-        image: image || 'https://images.unsplash.com/photo-1546470427-5c1d2b0b8b8b?w=400'
+        image: image || 'https://images.unsplash.com/photo-1546470427-5c1d2b0b8b8b?w=400',
+        icon: icon || null,
+        category: category || 'VEGETABLE',
+        unit: unit || 'PIECE'
       }
     });
 
@@ -57,12 +60,12 @@ export async function POST(request: NextRequest) {
       {
         success: true,
         data: newFood,
-        message: 'Verdura creada exitosamente'
+        message: 'Ingrediente creado exitosamente'
       },
       { status: 201 }
     );
   } catch (error) {
-    console.error('Error al crear verdura:', error);
+    console.error('Error al crear ingrediente:', error);
     return NextResponse.json(
       {
         success: false,

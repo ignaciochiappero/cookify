@@ -14,6 +14,8 @@ export interface MealCalendarItem {
     id: string;
     title: string;
     description: string;
+    ingredients: string; // JSON string
+    instructions: string;
     cookingTime?: number;
     difficulty?: string;
     servings?: number;

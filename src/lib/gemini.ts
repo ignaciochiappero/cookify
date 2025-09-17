@@ -114,18 +114,30 @@ export async function generateRecipeWithInventory(
   servings?: number,
   suggestIngredients: boolean = false
 ): Promise<GeneratedRecipeWithInventory> {
-  try {
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+  // Verificar que la API key esté configurada
+  if (!process.env.GEMINI_API_KEY) {
+    throw new Error('GEMINI_API_KEY no está configurada en las variables de entorno');
+  }
 
-    // Formatear inventario con cantidades
-    const inventoryText = inventory.map(item => {
-      const unitAbbr = FOOD_UNIT_ABBREVIATIONS[item.unit];
-      return `${item.name}: ${item.quantity} ${unitAbbr}`;
-    }).join(', ');
+  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+  
+  // Sistema de reintentos para manejar sobrecarga de API
+  const maxRetries = 3;
+  const baseDelay = 2000; // 2 segundos base
+  
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      console.log(`Intento ${attempt}/${maxRetries} para generar receta de ${mealType}`);
 
-    const mealTypeLabel = MEAL_TYPE_LABELS[mealType];
-    
-    let prompt = `Necesito que me crees una receta para ${mealTypeLabel.toLowerCase()} utilizando estos ingredientes disponibles en mi inventario:
+      // Formatear inventario con cantidades
+      const inventoryText = inventory.map(item => {
+        const unitAbbr = FOOD_UNIT_ABBREVIATIONS[item.unit];
+        return `${item.name}: ${item.quantity} ${unitAbbr}`;
+      }).join(', ');
+
+      const mealTypeLabel = MEAL_TYPE_LABELS[mealType];
+      
+      let prompt = `Necesito que me crees una receta para ${mealTypeLabel.toLowerCase()} utilizando estos ingredientes disponibles en mi inventario:
 
 ${inventoryText}
 
@@ -148,15 +160,15 @@ Requisitos:
 - Asegúrate de que la receta sea apropiada para ${mealTypeLabel.toLowerCase()}
 - Responde en español`;
 
-    if (servings) {
-      prompt += `\n- Número de porciones: ${servings}`;
-    }
+      if (servings) {
+        prompt += `\n- Número de porciones: ${servings}`;
+      }
 
-    if (suggestIngredients) {
-      prompt += `\n- También sugiere ingredientes adicionales que podrían mejorar la receta o crear más variedad`;
-    }
+      if (suggestIngredients) {
+        prompt += `\n- También sugiere ingredientes adicionales que podrían mejorar la receta o crear más variedad`;
+      }
 
-    prompt += `\n\nResponde en formato JSON con la siguiente estructura:
+      prompt += `\n\nResponde en formato JSON con la siguiente estructura:
 {
   "title": "Título de la receta",
   "description": "Descripción breve",
@@ -171,34 +183,73 @@ IMPORTANTE:
 - El campo "instructions" debe ser un STRING, no un array. Separa los pasos con \\n\\n para mejor formato.
 - El campo "suggestedIngredients" debe ser un array de strings con ingredientes adicionales sugeridos.`;
 
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const text = response.text();
+      const result = await model.generateContent(prompt);
+      const response = await result.response;
+      const text = response.text();
 
-    // Limpiar la respuesta (remover markdown si existe)
-    const cleanText = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-    
-    // Parsear el JSON
-    const recipeData = JSON.parse(cleanText);
+      // Limpiar la respuesta (remover markdown si existe)
+      const cleanText = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+      
+      // Parsear el JSON
+      const recipeData = JSON.parse(cleanText);
 
-    // Convertir instrucciones de array a string si es necesario
-    let instructions = recipeData.instructions;
-    if (Array.isArray(instructions)) {
-      instructions = instructions.join('\n\n');
+      // Convertir instrucciones de array a string si es necesario
+      let instructions = recipeData.instructions;
+      if (Array.isArray(instructions)) {
+        instructions = instructions.join('\n\n');
+      }
+
+      console.log(`✅ Receta generada exitosamente en intento ${attempt} para ${mealType}`);
+      return {
+        title: recipeData.title,
+        description: recipeData.description,
+        instructions: instructions,
+        cookingTime: recipeData.cookingTime,
+        difficulty: recipeData.difficulty,
+        servings: recipeData.servings,
+        suggestedIngredients: recipeData.suggestedIngredients || []
+      };
+
+    } catch (error) {
+      console.error(`❌ Error en intento ${attempt}/${maxRetries} para ${mealType}:`, error);
+      
+      // Verificar si es un error de sobrecarga (503) o rate limiting
+      const isOverloadError = error instanceof Error && 
+        (error.message.includes('503') || 
+         error.message.includes('overloaded') || 
+         error.message.includes('Service Unavailable') ||
+         error.message.includes('rate limit'));
+      
+      // Si es el último intento o no es un error de sobrecarga, lanzar el error
+      if (attempt === maxRetries || !isOverloadError) {
+        // Log más detallado del error
+        if (error instanceof Error) {
+          console.error('Gemini error message:', error.message);
+          console.error('Gemini error stack:', error.stack);
+        }
+        
+        // Verificar si es un error de API key
+        if (error instanceof Error && error.message.includes('API_KEY')) {
+          throw new Error('Error de configuración de API. Verifica la clave de Gemini.');
+        }
+        
+        // Verificar si es un error de red
+        if (error instanceof Error && (error.message.includes('fetch') || error.message.includes('network'))) {
+          throw new Error('Error de conexión. Verifica tu conexión a internet.');
+        }
+        
+        throw new Error(`Error al generar la receta: ${error instanceof Error ? error.message : 'Error desconocido'}`);
+      }
+      
+      // Si es un error de sobrecarga y no es el último intento, esperar y reintentar
+      if (isOverloadError) {
+        const delay = baseDelay * Math.pow(2, attempt - 1); // Backoff exponencial
+        console.log(`⏳ API sobrecargada. Esperando ${delay}ms antes del siguiente intento...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
     }
-
-    return {
-      title: recipeData.title,
-      description: recipeData.description,
-      instructions: instructions,
-      cookingTime: recipeData.cookingTime,
-      difficulty: recipeData.difficulty,
-      servings: recipeData.servings,
-      suggestedIngredients: recipeData.suggestedIngredients || []
-    };
-
-  } catch (error) {
-    console.error('Error generando receta con inventario:', error);
-    throw new Error('Error al generar la receta. Por favor, intenta de nuevo.');
   }
+  
+  // Si llegamos aquí, todos los intentos fallaron
+  throw new Error(`No se pudo generar la receta después de ${maxRetries} intentos. La API de Gemini está sobrecargada.`);
 }

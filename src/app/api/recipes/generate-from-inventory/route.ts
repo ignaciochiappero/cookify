@@ -33,6 +33,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    console.log(`Generando receta para ${mealType} con ${inventory.length} ingredientes en inventario`);
+
     // Formatear ingredientes con cantidades
     const ingredientsWithQuantities = inventory.map(item => ({
       name: item.food.name,
@@ -69,8 +71,18 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error('Error al generar receta desde inventario:', error);
+    
+    // Log más detallado del error
+    if (error instanceof Error) {
+      console.error('Error message:', error.message);
+      console.error('Error stack:', error.stack);
+    }
+    
     return NextResponse.json(
-      { error: 'Error interno del servidor' },
+      { 
+        error: 'Error interno del servidor',
+        details: error instanceof Error ? error.message : 'Error desconocido'
+      },
       { status: 500 }
     );
   }

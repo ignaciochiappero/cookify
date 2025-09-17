@@ -53,7 +53,11 @@ export default function MealPlanner() {
 
       if (inventoryResponse.ok) {
         const inventoryData = await inventoryResponse.json();
-        setInventory(inventoryData);
+        if (inventoryData.success) {
+          setInventory(inventoryData.data || []);
+        } else {
+          setInventory([]);
+        }
       }
 
       if (recipesResponse.ok) {

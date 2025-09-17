@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { mealType, servings, suggestIngredients } = body;
+    const { mealType, servings, suggestIngredients, customTitle, customDescription, preferredIngredients } = body;
 
     // Obtener inventario del usuario
     const inventory = await prisma.userIngredientInventory.findMany({
@@ -48,7 +48,12 @@ export async function POST(request: NextRequest) {
       ingredientsWithQuantities,
       mealType,
       servings,
-      suggestIngredients
+      suggestIngredients,
+      {
+        customTitle,
+        customDescription,
+        preferredIngredients
+      }
     );
 
     // Guardar receta en la base de datos

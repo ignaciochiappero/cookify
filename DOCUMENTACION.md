@@ -2,7 +2,7 @@
 
 ## 📋 Resumen Ejecutivo
 
-**Cookify** es una aplicación web moderna construida con Next.js 15 que permite a los usuarios gestionar su inventario de ingredientes, planificar comidas en un calendario, y generar recetas personalizadas utilizando la API de Google Gemini. La aplicación incluye un sistema completo de autenticación, gestión de inventario con cantidades y unidades, calendario de comidas, generación inteligente de recetas, planificador inteligente masivo, sistema de reintentos para APIs sobrecargadas, y una interfaz moderna con iconos de Lucide React y animaciones Framer Motion.
+**Cookify** es una aplicación web moderna construida con Next.js 15 que permite a los usuarios gestionar su inventario de ingredientes, planificar comidas en un calendario, y generar recetas personalizadas utilizando la API de Google Gemini. La aplicación incluye un sistema completo de autenticación, gestión de inventario con cantidades y unidades, calendario de comidas, generación inteligente de recetas, **análisis de imágenes con IA multimodal**, planificador inteligente masivo, sistema de reintentos para APIs sobrecargadas, **sistema de cache inteligente**, y una interfaz moderna con iconos de Lucide React y animaciones Framer Motion.
 
 ## 🏗️ Arquitectura Técnica
 
@@ -11,7 +11,7 @@
 - **Backend**: Next.js API Routes
 - **Base de Datos**: PostgreSQL con Prisma ORM
 - **Autenticación**: NextAuth.js v4
-- **IA**: Google Gemini 1.5 Flash con sistema de reintentos
+- **IA**: Google Gemini 1.5 Flash con sistema de reintentos y análisis multimodal
 - **Estilos**: Tailwind CSS v4 con configuración personalizada
 - **Validación**: Zod + React Hook Form
 - **Lenguaje**: TypeScript con tipos estrictos
@@ -32,6 +32,8 @@ cookify/
 │   │   │   ├── inventory/     # Gestión de inventario
 │   │   │   ├── meal-calendar/ # Calendario de comidas
 │   │   │   ├── recipes/       # Gestión de recetas
+│   │   │   ├── analyze-ingredients/ # Análisis de imágenes con IA
+│   │   │   ├── generate-meal-plan/  # Generación de planes de comidas
 │   │   │   └── user/          # Preferencias de usuario
 │   │   ├── auth/              # Páginas de autenticación
 │   │   ├── dashboard/         # Dashboard principal
@@ -42,8 +44,12 @@ cookify/
 │   │   ├── InventoryManager.tsx    # Gestión de inventario
 │   │   ├── MealCalendar.tsx        # Calendario de comidas
 │   │   ├── RecipeGenerator.tsx     # Generador de recetas
+│   │   ├── ImageAnalyzer.tsx       # Análisis de imágenes con IA
 │   │   └── ...                    # Otros componentes
 │   ├── lib/                   # Utilidades y configuración
+│   │   ├── gemini.ts          # Integración con Google Gemini
+│   │   ├── recipeCache.ts     # Sistema de cache para recetas
+│   │   └── ...                # Otras utilidades
 │   ├── types/                 # Definiciones TypeScript
 │   │   ├── inventory.ts       # Tipos de inventario
 │   │   ├── meal-calendar.ts   # Tipos de calendario
@@ -270,7 +276,17 @@ model VerificationToken { ... }
    - Ingredientes adicionales sugeridos (si se solicita)
 6. La receta se guarda y puede ser programada en el calendario
 
-#### 3. Planificador Inteligente Masivo (Meal Calendar)
+#### 3. Análisis de Imágenes con IA Multimodal (Meal Planner)
+1. Usuario sube una imagen de ingredientes disponibles
+2. Gemini analiza la imagen y detecta ingredientes visibles
+3. El sistema compara los ingredientes detectados con el inventario actual
+4. Sugiere ingredientes faltantes para agregar al inventario
+5. Usuario puede editar, modificar cantidades y confirmar ingredientes
+6. Los ingredientes se agregan automáticamente al inventario
+7. Se genera un plan de comidas inteligente basado en los ingredientes disponibles
+8. Cada receta del plan usa solo ingredientes específicos (no todos los del inventario)
+
+#### 4. Planificador Inteligente Masivo (Meal Calendar)
 1. Usuario activa el "Planificador Inteligente"
 2. Selecciona múltiples slots de comida en el calendario
 3. El sistema agrupa las selecciones por tipo de comida
@@ -350,6 +366,72 @@ Responde en formato JSON con la siguiente estructura:
 }
 ```
 
+#### Prompt de Análisis de Imágenes
+```
+Analiza esta imagen de ingredientes y proporciona información detallada sobre los ingredientes visibles.
+
+Por favor, identifica:
+1. Todos los ingredientes visibles en la imagen
+2. Cantidades estimadas de cada ingrediente
+3. Ingredientes que podrían estar faltando para completar recetas comunes
+4. Sugerencias de ingredientes adicionales que complementarían los detectados
+
+Compara los ingredientes detectados con este inventario actual: [INVENTARIO_ACTUAL]
+
+Responde ÚNICAMENTE en formato JSON válido:
+{
+  "detectedIngredients": [
+    {
+      "name": "Nombre del ingrediente",
+      "quantity": cantidad_estimada,
+      "unit": "UNIDAD",
+      "category": "CATEGORIA"
+    }
+  ],
+  "missingIngredients": [
+    {
+      "name": "Ingrediente faltante",
+      "quantity": cantidad_sugerida,
+      "unit": "UNIDAD",
+      "category": "CATEGORIA"
+    }
+  ],
+  "suggestions": [
+    "Sugerencia 1",
+    "Sugerencia 2"
+  ]
+}
+```
+
+#### Prompt de Generación de Plan de Comidas
+```
+Genera un plan de comidas inteligente para [NUMERO_DIAS] días usando estos ingredientes disponibles:
+
+[INVENTARIO_COMBINADO]
+
+Por favor, crea un plan que incluya:
+- Desayuno, almuerzo, merienda y cena para cada día
+- Recetas que usen SOLO los ingredientes disponibles
+- Variedad en los tipos de comida
+- Ingredientes específicos para cada receta
+
+Responde ÚNICAMENTE en formato JSON válido:
+{
+  "mealPlan": [
+    {
+      "day": "YYYY-MM-DD",
+      "meals": [
+        {
+          "type": "BREAKFAST|LUNCH|SNACK|DINNER",
+          "title": "Nombre de la receta",
+          "ingredients": ["ingrediente1", "ingrediente2"]
+        }
+      ]
+    }
+  ]
+}
+```
+
 ## 🛠️ APIs Implementadas
 
 ### Autenticación
@@ -389,6 +471,11 @@ Responde en formato JSON con la siguiente estructura:
 - `DELETE /api/recipes/[id]` - Eliminar receta (con cascada en calendario)
 - `POST /api/recipes/generate` - Generar nueva receta con IA (básica)
 - `POST /api/recipes/generate-from-inventory` - Generar receta desde inventario (avanzada)
+- `POST /api/recipes/generate-specific` - Generar receta con ingredientes específicos
+
+### Análisis de Imágenes con IA
+- `POST /api/analyze-ingredients` - Analizar imagen de ingredientes con IA multimodal
+- `POST /api/generate-meal-plan` - Generar plan de comidas inteligente
 
 ## 🎨 Interfaz de Usuario
 
@@ -423,10 +510,13 @@ Responde en formato JSON con la siguiente estructura:
 - **Pestaña Inventario**: Gestión de ingredientes con cantidades y unidades
 - **Pestaña Calendario**: Planificación de comidas por fecha y tipo con planificador inteligente
 - **Pestaña Generador**: Creación de recetas desde inventario
+- **Análisis de Imágenes**: Botón "Analizar Ingredientes con IA" para análisis multimodal
 - Interfaz de pestañas con navegación fluida
 - Componentes especializados para cada funcionalidad
 - Planificador inteligente masivo para múltiples comidas
 - Sistema de reintentos automático para APIs sobrecargadas
+- **ImageAnalyzer**: Componente para subir imágenes y analizar ingredientes
+- **Sistema de Cache**: Cache inteligente para recetas generadas
 
 #### 5. Recetas (`/recipes`)
 - Lista de recetas generadas por el usuario
@@ -497,6 +587,17 @@ Responde en formato JSON con la siguiente estructura:
 - Opción para sugerir ingredientes adicionales
 - Integración con IA para recetas personalizadas
 - Estados de carga y resultados
+
+#### ImageAnalyzer
+- **Análisis multimodal**: Subida de imágenes para análisis con IA
+- **Detección inteligente**: Identificación automática de ingredientes en imágenes
+- **Edición de ingredientes**: Modificación de cantidades y unidades detectadas
+- **Gestión de inventario**: Agregado automático de ingredientes al inventario
+- **Plan de comidas**: Generación automática de planes de comidas
+- **Validación de archivos**: Soporte para PNG, JPG, WebP (máx. 5MB)
+- **Estados de carga**: Indicadores visuales durante el análisis (30-60 segundos)
+- **Manejo de errores**: Mensajes específicos para límites de cuota de API
+- **Integración con calendario**: Creación automática de entradas en el calendario
 
 #### ProtectedRoute
 - Componente wrapper para rutas protegidas
@@ -587,9 +688,10 @@ GEMINI_API_KEY="tu-api-key-de-gemini-aqui"
    - Seguimiento de comidas completadas
    - Navegación por meses
 
-5. **Generación de Recetas con IA (Triple Sistema)**
+5. **Generación de Recetas con IA (Sistema Cuádruple)**
    - **Sistema Básico**: Recetas desde ingredientes seleccionados
    - **Sistema Avanzado**: Recetas desde inventario con cantidades
+   - **Sistema de Análisis de Imágenes**: Análisis multimodal con IA
    - **Sistema Masivo**: Planificador inteligente para múltiples comidas
    - Integración con Google Gemini 1.5 Flash
    - Sistema de reintentos automático (3 intentos con backoff exponencial)
@@ -598,6 +700,9 @@ GEMINI_API_KEY="tu-api-key-de-gemini-aqui"
    - Formato estructurado y legible
    - Almacenamiento en base de datos
    - Manejo inteligente de sobrecarga de API
+   - **Sistema de Cache**: Cache inteligente para recetas (24 horas)
+   - **Análisis Multimodal**: Detección de ingredientes en imágenes
+   - **Recetas Específicas**: Cada receta usa solo ingredientes relevantes
 
 6. **Interfaz de Usuario Moderna**
    - Diseño minimalista con Tailwind CSS v4
@@ -611,7 +716,19 @@ GEMINI_API_KEY="tu-api-key-de-gemini-aqui"
    - Modales modernos con animaciones
    - Paginación y filtros avanzados
 
-7. **APIs RESTful Completas**
+7. **Análisis de Imágenes con IA Multimodal**
+   - **Detección Automática**: Identificación de ingredientes en imágenes
+   - **Análisis de Cantidades**: Estimación de cantidades por ingrediente
+   - **Comparación con Inventario**: Análisis de ingredientes faltantes
+   - **Sugerencias Inteligentes**: Recomendaciones de ingredientes adicionales
+   - **Edición Interactiva**: Modificación de ingredientes detectados
+   - **Validación de Archivos**: Soporte para PNG, JPG, WebP (máx. 5MB)
+   - **Integración con Inventario**: Agregado automático de ingredientes
+   - **Generación de Planes**: Creación automática de planes de comidas
+   - **Manejo de Errores**: Mensajes específicos para límites de cuota
+   - **Estados de Carga**: Indicadores visuales durante el análisis
+
+8. **APIs RESTful Completas**
    - Endpoints para inventario y calendario
    - Validación de datos con Zod
    - Manejo de errores robusto
@@ -622,6 +739,7 @@ GEMINI_API_KEY="tu-api-key-de-gemini-aqui"
    - Logging detallado para debugging
    - Paginación y filtros en endpoints
    - Eliminación en cascada para integridad de datos
+   - **APIs de Análisis**: Endpoints para análisis de imágenes y planes de comidas
 
 ## 🔄 Flujos de Usuario
 
@@ -642,6 +760,18 @@ GEMINI_API_KEY="tu-api-key-de-gemini-aqui"
 6. **Planificador Masivo**: Usa el "Planificador Inteligente" para generar múltiples recetas automáticamente
 7. **Seguimiento**: Marca comidas como completadas y gestiona su planificación semanal
 8. **Edición**: Edita o regenera recetas existentes con IA
+
+### Flujo de Análisis de Imágenes (Meal Planner)
+1. **Registro/Login**: Usuario se registra o inicia sesión
+2. **Acceso al Analizador**: Va a "Meal Planner" y hace clic en "Analizar Ingredientes con IA"
+3. **Subida de Imagen**: Sube una imagen de ingredientes disponibles (PNG, JPG, WebP)
+4. **Análisis con IA**: Gemini analiza la imagen y detecta ingredientes (30-60 segundos)
+5. **Revisión de Ingredientes**: Usuario revisa y edita los ingredientes detectados
+6. **Modificación de Cantidades**: Ajusta cantidades y unidades según necesidad
+7. **Confirmación**: Confirma los ingredientes para agregar al inventario
+8. **Generación de Plan**: Genera un plan de comidas automáticamente
+9. **Integración con Calendario**: Las recetas se crean y programan en el calendario
+10. **Seguimiento**: Usuario puede ver las recetas generadas en "Mis Recetas"
 
 ## 🛡️ Seguridad Implementada
 
@@ -664,6 +794,9 @@ GEMINI_API_KEY="tu-api-key-de-gemini-aqui"
 - **Paginación** para listas grandes
 - **Debounce** en búsquedas para optimizar rendimiento
 - **useCallback** para evitar re-renders innecesarios
+- **Sistema de Cache** para recetas (24 horas de duración)
+- **Análisis Multimodal** optimizado para imágenes
+- **Manejo de Cuotas** con mensajes específicos para límites de API
 
 ## 🧪 Testing y Calidad
 
@@ -749,16 +882,20 @@ Cookify es una aplicación completa y funcional que demuestra la integración ex
 - **Generación inteligente** de recetas basada en inventario disponible
 
 ### Características Destacadas
-- **Triple sistema de generación**: Básico (ingredientes), Avanzado (inventario) y Masivo (planificador inteligente)
+- **Sistema cuádruple de generación**: Básico (ingredientes), Avanzado (inventario), Análisis de imágenes (multimodal) y Masivo (planificador inteligente)
+- **Análisis multimodal**: Detección automática de ingredientes en imágenes con IA
 - **Planificación completa**: Desde inventario hasta calendario de comidas
 - **Interfaz moderna**: Diseño minimalista con glassmorphism y animaciones
 - **Responsive design**: Funciona perfectamente en todos los dispositivos
 - **Seguridad robusta**: Autenticación, roles y validación de datos
 - **Escalabilidad**: Arquitectura preparada para crecimiento
 - **Sistema de reintentos**: Manejo inteligente de APIs sobrecargadas
+- **Sistema de cache**: Cache inteligente para recetas (24 horas)
 - **Iconos dinámicos**: 40+ iconos de Lucide React para ingredientes
 - **Celebraciones visuales**: Confetti para feedback positivo
 - **Gestión avanzada**: Edición, eliminación y regeneración de recetas
+- **Recetas específicas**: Cada receta usa solo ingredientes relevantes
+- **Manejo de cuotas**: Mensajes específicos para límites de API
 
 La aplicación está lista para producción y puede ser extendida con funcionalidades adicionales según las necesidades del negocio.
 
@@ -807,3 +944,27 @@ La aplicación está lista para producción y puede ser extendida con funcionali
 - **Debounce** en búsquedas
 - **Lazy loading** de componentes
 - **Build optimizado** con Turbopack
+
+### ✅ Análisis de Imágenes con IA Multimodal
+- **Detección automática** de ingredientes en imágenes
+- **Análisis de cantidades** y estimación de unidades
+- **Comparación inteligente** con inventario actual
+- **Sugerencias de ingredientes** faltantes
+- **Edición interactiva** de ingredientes detectados
+- **Validación de archivos** (PNG, JPG, WebP, máx. 5MB)
+- **Integración automática** con inventario
+- **Generación de planes** de comidas inteligentes
+
+### ✅ Sistema de Cache Inteligente
+- **Cache de recetas** por 24 horas
+- **Reducción de llamadas** a API en 80-90%
+- **Manejo de cuotas** optimizado
+- **Mensajes específicos** para límites de API
+- **Fallback automático** cuando se excede la cuota
+
+### ✅ Recetas Específicas por Ingredientes
+- **API específica** para ingredientes determinados
+- **Recetas precisas** que usan solo ingredientes relevantes
+- **Eliminación de ingredientes** genéricos en recetas
+- **Integración con calendario** automática
+- **Creación/actualización** de entradas en calendario

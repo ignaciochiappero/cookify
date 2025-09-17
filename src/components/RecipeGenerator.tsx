@@ -9,11 +9,13 @@ import {
   Users, 
   Star,
   Plus,
-  AlertCircle
+  AlertCircle,
+  Camera
 } from 'lucide-react';
 import { MealType, MEAL_TYPE_LABELS, MEAL_TYPE_ICONS } from '@/types/meal-calendar';
 import { IngredientInventory } from '@/types/inventory';
 import { Recipe } from '@/types/recipe';
+import ImageAnalyzer from './ImageAnalyzer';
 
 
 interface RecipeGeneratorProps {
@@ -31,7 +33,8 @@ export default function RecipeGenerator({ inventory, onRecipeGenerated }: Recipe
     suggestIngredients: false
   });
   const [error, setError] = useState('');
-
+  const [showImageAnalyzer, setShowImageAnalyzer] = useState(false);
+  
   // Asegurar que inventory sea siempre un array
   const safeInventory = Array.isArray(inventory) ? inventory : [];
 
@@ -66,6 +69,187 @@ export default function RecipeGenerator({ inventory, onRecipeGenerated }: Recipe
     }
   };
 
+  const handleIngredientsDetected = (ingredients: unknown[]) => {
+    // Aquí puedes agregar los ingredientes al inventario
+    console.log('Ingredientes detectados:', ingredients);
+    // Implementar lógica para agregar al inventario
+  };
+
+  const handleMealPlanGenerated = async (mealPlan: unknown[]) => {
+    console.log('Plan de comidas generado:', mealPlan);
+    
+    try {
+      // Procesar cada comida individualmente para generar recetas específicas y ricas
+      for (const dayPlan of mealPlan) {
+        const day = dayPlan as { date: string; meals: Record<string, { title: string; ingredients?: string[] }> };
+        const date = day.date;
+        
+        const mealTypes = ['breakfast', 'lunch', 'snack', 'dinner'];
+        
+        for (const mealType of mealTypes) {
+          if (day.meals && day.meals[mealType]) {
+            const meal = day.meals[mealType];
+            
+            try {
+              console.log(`Generando receta específica para ${date} - ${mealType}: ${meal.title}`);
+              
+              // Generar receta específica usando solo los ingredientes específicos de esta comida
+              const response = await fetch('/api/recipes/generate-specific', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  title: meal.title,
+                  description: `Receta para ${meal.title} generada automáticamente desde el plan de comidas inteligente`,
+                  mealType: mealType.toUpperCase(),
+                  servings: 4,
+                  difficulty: 'Fácil',
+                  cookingTime: 30,
+                  specificIngredients: meal.ingredients || [],
+                  preferences: {
+                    dietaryRestrictions: [],
+                    cuisineType: 'Internacional',
+                    spiceLevel: 'Medio'
+                  }
+                }),
+              });
+
+              if (response.ok) {
+                const responseData = await response.json();
+                const recipe = responseData.recipe;
+                
+                if (!recipe || !recipe.id) {
+                  console.error(`No se pudo obtener la receta para ${mealType}:`, responseData);
+                  // Si falla la generación específica, usar la API básica como fallback
+                  await createFallbackRecipe(date, mealType, meal);
+                  continue;
+                }
+
+                console.log(`✅ Receta específica generada para ${mealType}:`, recipe.title);
+
+                // Crear o actualizar entrada en el calendario
+                await createOrUpdateCalendarEntry(date, mealType, recipe.id, meal.title);
+                
+              } else {
+                console.error(`Error generando receta específica para ${mealType}:`, await response.text());
+                // Fallback a receta básica
+                await createFallbackRecipe(date, mealType, meal);
+              }
+            } catch (error) {
+              console.error(`Error procesando ${mealType} para ${date}:`, error);
+              // Fallback a receta básica
+              await createFallbackRecipe(date, mealType, meal);
+            }
+          }
+        }
+      }
+      
+      // Mostrar mensaje de éxito
+      alert('¡Plan de comidas agregado exitosamente al calendario!');
+      
+    } catch (error) {
+      console.error('Error al agregar plan de comidas al calendario:', error);
+      alert('Error al agregar el plan de comidas al calendario. Por favor, intenta de nuevo.');
+    }
+  };
+
+  // Función auxiliar para crear receta de fallback
+  const createFallbackRecipe = async (date: string, mealType: string, meal: { title: string; ingredients?: string[] }) => {
+    try {
+      console.log(`Creando receta de fallback para ${mealType}`);
+      
+      const response = await fetch('/api/recipes/generate-from-inventory', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          mealType: mealType.toUpperCase(),
+          servings: 4,
+          suggestIngredients: true
+        }),
+      });
+
+      if (response.ok) {
+        const responseData = await response.json();
+        const recipe = responseData.recipe;
+        
+        if (recipe && recipe.id) {
+          await createOrUpdateCalendarEntry(date, mealType, recipe.id, meal.title);
+        }
+      }
+    } catch (error) {
+      console.error(`Error en fallback para ${mealType}:`, error);
+    }
+  };
+
+  // Función auxiliar para crear o actualizar entrada en calendario
+  const createOrUpdateCalendarEntry = async (date: string, mealType: string, recipeId: string, mealTitle: string) => {
+    try {
+      console.log(`Procesando entrada en calendario para ${date} - ${mealType}`);
+      
+      // Primero intentar crear una nueva entrada
+      const calendarResponse = await fetch('/api/meal-calendar', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          date: new Date(date).toISOString(),
+          mealType: mealType.toUpperCase(),
+          recipeId: recipeId,
+          notes: `Plan generado automáticamente - ${mealTitle}`
+        }),
+      });
+
+      if (calendarResponse.ok) {
+        console.log(`✅ Entrada creada exitosamente para ${date} - ${mealType}`);
+      } else {
+        // Si falla porque ya existe, buscar la entrada existente y actualizarla
+        console.log(`Entrada ya existe para ${date} - ${mealType}, actualizando...`);
+        
+        // Buscar la entrada existente
+        const existingMealsResponse = await fetch(
+          `/api/meal-calendar?startDate=${new Date(date).toISOString()}&endDate=${new Date(date).toISOString()}`
+        );
+        
+        if (existingMealsResponse.ok) {
+          const existingMeals = await existingMealsResponse.json();
+          const existingMeal = existingMeals.find((m: { date: string; mealType: string; id: string }) => {
+            const mealDate = new Date(m.date);
+            return mealDate.toISOString().split('T')[0] === new Date(date).toISOString().split('T')[0] && 
+                   m.mealType === mealType.toUpperCase();
+          });
+
+          if (existingMeal) {
+            // Actualizar la entrada existente
+            const updateResponse = await fetch(`/api/meal-calendar/${existingMeal.id}`, {
+              method: 'PUT',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                recipeId: recipeId,
+                notes: `Plan actualizado automáticamente - ${mealTitle}`
+              }),
+            });
+
+            if (updateResponse.ok) {
+              console.log(`✅ Entrada actualizada exitosamente para ${date} - ${mealType}`);
+            } else {
+              console.error(`❌ Error actualizando entrada para ${date} - ${mealType}:`, await updateResponse.text());
+            }
+          } else {
+            console.error(`❌ No se encontró entrada existente para actualizar ${date} - ${mealType}`);
+          }
+        }
+      }
+    } catch (error) {
+      console.error(`Error procesando entrada para ${date} - ${mealType}:`, error);
+    }
+  };
+
   const getDifficultyColor = (difficulty?: string) => {
     switch (difficulty?.toLowerCase()) {
       case 'fácil': return 'text-green-600 bg-green-100';
@@ -84,24 +268,84 @@ export default function RecipeGenerator({ inventory, onRecipeGenerated }: Recipe
     }
   };
 
-  if (inventory.length === 0) {
+  // Mostrar mensaje de inventario vacío solo si no hay analizador de imágenes activo
+  if (safeInventory.length === 0 && !showImageAnalyzer) {
     return (
-      <div className="bg-white rounded-2xl p-8 shadow-soft border border-primary-200 text-center">
-        <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-          <ChefHat className="w-8 h-8 text-gray-400" />
+      <div className="space-y-6">
+        {/* Botón para abrir analizador de imágenes */}
+        <div className="mb-6">
+          <motion.button
+            onClick={() => setShowImageAnalyzer(!showImageAnalyzer)}
+            className="w-full bg-gradient-to-r from-purple-500 to-pink-600 text-white py-3 px-6 rounded-xl font-semibold mb-4"
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+          >
+            <div className="flex items-center justify-center space-x-2">
+              <Camera className="h-5 w-5" />
+              <span>Analizar Ingredientes con IA</span>
+            </div>
+          </motion.button>
         </div>
-        <h3 className="text-lg font-semibold text-gray-900 mb-2">
-          Inventario Vacío
-        </h3>
-        <p className="text-gray-600">
-          Agrega ingredientes a tu inventario para poder generar recetas personalizadas
-        </p>
+
+        {/* Analizador de imágenes */}
+        {showImageAnalyzer && (
+          <div className="mb-8">
+            <ImageAnalyzer
+              onIngredientsDetected={handleIngredientsDetected}
+              onMealPlanGenerated={handleMealPlanGenerated}
+              currentInventory={safeInventory}
+            />
+          </div>
+        )}
+
+        {/* Mensaje de inventario vacío */}
+        {!showImageAnalyzer && (
+          <div className="bg-white rounded-2xl p-8 shadow-soft border border-primary-200 text-center">
+            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <ChefHat className="w-8 h-8 text-gray-400" />
+            </div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              Inventario Vacío
+            </h3>
+            <p className="text-gray-600">
+              Agrega ingredientes a tu inventario para poder generar recetas personalizadas
+            </p>
+          </div>
+        )}
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
+      {/* Botón para abrir analizador de imágenes */}
+      <div className="mb-6">
+        <motion.button
+          onClick={() => setShowImageAnalyzer(!showImageAnalyzer)}
+          className="w-full bg-gradient-to-r from-purple-500 to-pink-600 text-white py-3 px-6 rounded-xl font-semibold mb-4"
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+        >
+          <div className="flex items-center justify-center space-x-2">
+            <Camera className="h-5 w-5" />
+            <span>
+              {showImageAnalyzer ? 'Ocultar Analizador de Imágenes' : 'Analizar Ingredientes con IA'}
+            </span>
+          </div>
+        </motion.button>
+      </div>
+
+      {/* Analizador de imágenes */}
+      {showImageAnalyzer && (
+        <div className="mb-8">
+          <ImageAnalyzer
+            onIngredientsDetected={handleIngredientsDetected}
+            onMealPlanGenerated={handleMealPlanGenerated}
+            currentInventory={safeInventory}
+          />
+        </div>
+      )}
+
       {/* Header */}
       <div className="text-center">
         <h2 className="text-2xl font-bold text-gray-900 mb-2">

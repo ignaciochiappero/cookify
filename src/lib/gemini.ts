@@ -1,5 +1,8 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { RecipeIngredient, GeneratedRecipe } from '@/types/recipe';
+import { FOOD_UNIT_ABBREVIATIONS } from '@/types/inventory';
+import { FoodUnit as PrismaFoodUnit } from '../generated/prisma';
+import { MealType, MEAL_TYPE_LABELS } from '@/types/meal-calendar';
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 
@@ -90,6 +93,112 @@ IMPORTANTE: El campo "instructions" debe ser un STRING, no un array. Separa los 
 
   } catch (error) {
     console.error('Error generando receta con Gemini:', error);
+    throw new Error('Error al generar la receta. Por favor, intenta de nuevo.');
+  }
+}
+
+interface InventoryIngredient {
+  name: string;
+  quantity: number;
+  unit: PrismaFoodUnit;
+  category: string;
+}
+
+interface GeneratedRecipeWithInventory extends GeneratedRecipe {
+  suggestedIngredients?: string[];
+}
+
+export async function generateRecipeWithInventory(
+  inventory: InventoryIngredient[],
+  mealType: MealType,
+  servings?: number,
+  suggestIngredients: boolean = false
+): Promise<GeneratedRecipeWithInventory> {
+  try {
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+
+    // Formatear inventario con cantidades
+    const inventoryText = inventory.map(item => {
+      const unitAbbr = FOOD_UNIT_ABBREVIATIONS[item.unit];
+      return `${item.name}: ${item.quantity} ${unitAbbr}`;
+    }).join(', ');
+
+    const mealTypeLabel = MEAL_TYPE_LABELS[mealType];
+    
+    let prompt = `Necesito que me crees una receta para ${mealTypeLabel.toLowerCase()} utilizando estos ingredientes disponibles en mi inventario:
+
+${inventoryText}
+
+Por favor, genera UNA receta completa y detallada que incluya:
+
+1. Título atractivo de la receta
+2. Descripción breve (2-3 líneas)
+3. Instrucciones paso a paso detalladas
+4. Tiempo de cocción estimado en minutos
+5. Nivel de dificultad (Fácil, Medio, Difícil)
+6. Número de porciones
+7. Lista de ingredientes necesarios con cantidades específicas
+
+Requisitos:
+- Usa principalmente los ingredientes disponibles en mi inventario
+- Calcula las cantidades exactas necesarias para la receta
+- Puedes sugerir ingredientes básicos adicionales (sal, aceite, especias comunes) si es necesario
+- Las instrucciones deben ser claras y fáciles de seguir
+- El tiempo de cocción debe ser realista
+- Asegúrate de que la receta sea apropiada para ${mealTypeLabel.toLowerCase()}
+- Responde en español`;
+
+    if (servings) {
+      prompt += `\n- Número de porciones: ${servings}`;
+    }
+
+    if (suggestIngredients) {
+      prompt += `\n- También sugiere ingredientes adicionales que podrían mejorar la receta o crear más variedad`;
+    }
+
+    prompt += `\n\nResponde en formato JSON con la siguiente estructura:
+{
+  "title": "Título de la receta",
+  "description": "Descripción breve",
+  "instructions": "Instrucciones paso a paso detalladas. Separa cada paso con un salto de línea doble para mejor legibilidad.",
+  "cookingTime": 30,
+  "difficulty": "Fácil",
+  "servings": 4,
+  "suggestedIngredients": ["ingrediente1", "ingrediente2", "ingrediente3"]
+}
+
+IMPORTANTE: 
+- El campo "instructions" debe ser un STRING, no un array. Separa los pasos con \\n\\n para mejor formato.
+- El campo "suggestedIngredients" debe ser un array de strings con ingredientes adicionales sugeridos.`;
+
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const text = response.text();
+
+    // Limpiar la respuesta (remover markdown si existe)
+    const cleanText = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+    
+    // Parsear el JSON
+    const recipeData = JSON.parse(cleanText);
+
+    // Convertir instrucciones de array a string si es necesario
+    let instructions = recipeData.instructions;
+    if (Array.isArray(instructions)) {
+      instructions = instructions.join('\n\n');
+    }
+
+    return {
+      title: recipeData.title,
+      description: recipeData.description,
+      instructions: instructions,
+      cookingTime: recipeData.cookingTime,
+      difficulty: recipeData.difficulty,
+      servings: recipeData.servings,
+      suggestedIngredients: recipeData.suggestedIngredients || []
+    };
+
+  } catch (error) {
+    console.error('Error generando receta con inventario:', error);
     throw new Error('Error al generar la receta. Por favor, intenta de nuevo.');
   }
 }

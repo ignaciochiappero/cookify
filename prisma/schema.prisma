@@ -14,11 +14,39 @@ model Food {
   name String
   description String
   image String
+  category FoodCategory @default(VEGETABLE)
+  unit FoodUnit @default(PIECE)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   
   // Relación con preferencias de usuarios
   userPreferences UserFoodPreference[]
+  // Relación con inventario de usuarios
+  userInventory UserIngredientInventory[]
+}
+
+enum FoodCategory {
+  VEGETABLE
+  FRUIT
+  MEAT
+  DAIRY
+  GRAIN
+  LIQUID
+  SPICE
+  OTHER
+}
+
+enum FoodUnit {
+  PIECE
+  GRAM
+  KILOGRAM
+  LITER
+  MILLILITER
+  CUP
+  TABLESPOON
+  TEASPOON
+  POUND
+  OUNCE
 }
 
 model User {
@@ -35,8 +63,14 @@ model User {
   // Relación con preferencias de alimentos
   foodPreferences UserFoodPreference[]
   
+  // Relación con inventario de ingredientes
+  ingredientInventory UserIngredientInventory[]
+  
   // Relación con recetas generadas
   recipes Recipe[]
+  
+  // Relación con calendario de comidas
+  mealCalendar MealCalendar[]
   
   // Relación con sesiones de NextAuth
   accounts Account[]
@@ -71,6 +105,7 @@ model Recipe {
   updatedAt DateTime @updatedAt
   
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  mealCalendar MealCalendar[]
 }
 
 enum UserRole {
@@ -113,4 +148,49 @@ model VerificationToken {
   expires DateTime
   
   @@unique([identifier, token])
+}
+
+// Modelo para inventario de ingredientes del usuario
+model UserIngredientInventory {
+  id String @id @default(uuid())
+  userId String
+  foodId String
+  quantity Float
+  unit FoodUnit
+  expirationDate DateTime?
+  notes String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  food Food @relation(fields: [foodId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, foodId])
+}
+
+// Modelo para calendario de comidas
+model MealCalendar {
+  id String @id @default(uuid())
+  userId String
+  date DateTime
+  mealType MealType
+  recipeId String?
+  customMealName String?
+  isPlanned Boolean @default(false)
+  isCompleted Boolean @default(false)
+  notes String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  recipe Recipe? @relation(fields: [recipeId], references: [id], onDelete: SetNull)
+  
+  @@unique([userId, date, mealType])
+}
+
+enum MealType {
+  BREAKFAST
+  LUNCH
+  SNACK
+  DINNER
 }

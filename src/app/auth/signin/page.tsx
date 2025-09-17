@@ -44,7 +44,7 @@ export default function SignIn() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-accent-50 relative overflow-hidden">
+    <div className="min-h-screen bg-white relative overflow-hidden">
       {/* Background Pattern */}
       <div className="absolute inset-0 opacity-40">
         <div className="absolute inset-0" style={{
@@ -73,7 +73,7 @@ export default function SignIn() {
             <h1 className="text-3xl font-bold bg-gradient-to-r from-primary-600 to-primary-800 bg-clip-text text-transparent mb-2">
               Cookify
             </h1>
-            <p className="text-gray-500 text-sm">Tu asistente de cocina con IA</p>
+            <p className="text-gray-600 text-sm">Tu asistente de cocina con IA</p>
           </motion.div>
 
           {/* Main Form Card */}
@@ -81,7 +81,7 @@ export default function SignIn() {
             initial={{ opacity: 0, y: 30, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             transition={{ delay: 0.3, type: "spring", stiffness: 200 }}
-            className="bg-white/90 backdrop-blur-xl rounded-3xl shadow-strong border border-white/20 p-8 relative overflow-hidden"
+            className="bg-white/90 backdrop-blur-xl rounded-3xl shadow-strong border border-primary-200 p-8 relative overflow-hidden"
           >
             {/* Card Background Gradient */}
             <div className="absolute inset-0 bg-gradient-to-br from-white/50 to-primary-50/30 pointer-events-none"></div>
@@ -96,7 +96,7 @@ export default function SignIn() {
                   <h2 className="text-2xl font-bold text-gray-900 mb-2">
                     ¡Bienvenido de vuelta! 👋
                   </h2>
-                  <p className="text-gray-600">
+                  <p className="text-gray-700">
                     Inicia sesión para acceder a tu cuenta
                   </p>
                 </motion.div>
@@ -202,7 +202,7 @@ export default function SignIn() {
                 transition={{ delay: 0.9 }}
                 className="mt-8 text-center"
               >
-                <p className="text-sm text-gray-600">
+                <p className="text-sm text-gray-700">
                   ¿No tienes cuenta?{' '}
                   <Link 
                     href="/auth/signup" 
@@ -220,7 +220,7 @@ export default function SignIn() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 1.0 }}
-            className="mt-8 bg-white/60 backdrop-blur-xl rounded-2xl p-6 border border-white/30 shadow-soft"
+              className="mt-8 bg-white/60 backdrop-blur-xl rounded-2xl p-6 border border-primary-200 shadow-soft"
           >
             <div className="text-center">
               <h3 className="text-sm font-semibold text-gray-800 mb-3 flex items-center justify-center">
@@ -229,12 +229,12 @@ export default function SignIn() {
               </h3>
               <div className="space-y-2 text-xs">
                 <div className="flex items-center justify-between bg-gray-50/50 rounded-lg p-3">
-                  <span className="font-medium text-gray-700">Usuario:</span>
-                  <span className="text-gray-600 font-mono">demo@cookify.com / demo123</span>
+                  <span className="font-medium text-gray-800">Usuario:</span>
+                  <span className="text-gray-700 font-mono">demo@cookify.com / demo123</span>
                 </div>
                 <div className="flex items-center justify-between bg-gray-50/50 rounded-lg p-3">
-                  <span className="font-medium text-gray-700">Admin:</span>
-                  <span className="text-gray-600 font-mono">admin@cookify.com / admin123</span>
+                  <span className="font-medium text-gray-800">Admin:</span>
+                  <span className="text-gray-700 font-mono">admin@cookify.com / admin123</span>
                 </div>
               </div>
             </div>

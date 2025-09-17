@@ -153,7 +153,7 @@ export default function Admin() {
 
   return (
     <ProtectedRoute requiredRole="ADMIN">
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-primary-50">
+      <div className="min-h-screen bg-white">
         <Navbar />
         
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -177,7 +177,7 @@ export default function Admin() {
             <h1 className="text-4xl font-bold text-gray-900 mb-4">
               Panel de Administración
             </h1>
-            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+            <p className="text-xl text-gray-700 max-w-2xl mx-auto">
               Gestiona los ingredientes disponibles en la aplicación
             </p>
           </motion.div>
@@ -189,38 +189,38 @@ export default function Admin() {
             transition={{ delay: 0.3 }}
             className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8"
           >
-            <div className="bg-white rounded-2xl p-6 shadow-soft">
+            <div className="bg-white rounded-2xl p-6 shadow-soft border border-primary-200">
               <div className="flex items-center space-x-3">
                 <div className="bg-primary-100 p-3 rounded-xl">
                   <ChefHat className="w-6 h-6 text-primary-600" />
                 </div>
                 <div>
                   <div className="text-2xl font-bold text-gray-900">{foods.length}</div>
-                  <div className="text-gray-600">Ingredientes totales</div>
+                  <div className="text-gray-700">Ingredientes totales</div>
                 </div>
               </div>
             </div>
             
-            <div className="bg-white rounded-2xl p-6 shadow-soft">
+            <div className="bg-white rounded-2xl p-6 shadow-soft border border-primary-200">
               <div className="flex items-center space-x-3">
                 <div className="bg-accent-100 p-3 rounded-xl">
                   <Users className="w-6 h-6 text-accent-600" />
                 </div>
                 <div>
                   <div className="text-2xl font-bold text-gray-900">Admin</div>
-                  <div className="text-gray-600">Rol de usuario</div>
+                  <div className="text-gray-700">Rol de usuario</div>
                 </div>
               </div>
             </div>
             
-            <div className="bg-white rounded-2xl p-6 shadow-soft">
+            <div className="bg-white rounded-2xl p-6 shadow-soft border border-primary-200">
               <div className="flex items-center space-x-3">
                 <div className="bg-green-100 p-3 rounded-xl">
                   <Sparkles className="w-6 h-6 text-green-600" />
                 </div>
                 <div>
                   <div className="text-2xl font-bold text-gray-900">IA</div>
-                  <div className="text-gray-600">Generación activa</div>
+                  <div className="text-gray-700">Generación activa</div>
                 </div>
               </div>
             </div>
@@ -231,14 +231,14 @@ export default function Admin() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.4 }}
-            className="bg-white rounded-2xl p-6 shadow-soft mb-8"
+            className="bg-white rounded-2xl p-6 shadow-soft mb-8 border border-primary-200"
           >
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
               <div>
                 <h2 className="text-xl font-semibold text-gray-900 mb-1">
                   Gestión de Ingredientes
                 </h2>
-                <p className="text-gray-600">
+                <p className="text-gray-700">
                   Agrega, edita o elimina ingredientes del sistema
                 </p>
               </div>
@@ -270,7 +270,7 @@ export default function Admin() {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.05 }}
                   whileHover={{ y: -5 }}
-                  className="bg-white rounded-2xl p-6 shadow-soft hover:shadow-medium transition-all duration-300"
+                  className="bg-white rounded-2xl p-6 shadow-soft hover:shadow-medium transition-all duration-300 border border-primary-200"
                 >
                   <div className="text-center">
                     <div className="w-16 h-16 mx-auto mb-4 bg-primary-100 rounded-2xl flex items-center justify-center">
@@ -281,7 +281,7 @@ export default function Admin() {
                       {food.name}
                     </h3>
                     
-                    <p className="text-sm text-gray-600 mb-4 line-clamp-2">
+                    <p className="text-sm text-gray-700 mb-4 line-clamp-2">
                       {food.description}
                     </p>
                     
@@ -322,7 +322,7 @@ export default function Admin() {
               <h2 className="text-xl font-semibold text-gray-900 mb-2">
                 No hay ingredientes disponibles
               </h2>
-              <p className="text-gray-600 mb-6">
+              <p className="text-gray-700 mb-6">
                 Comienza agregando tu primer ingrediente al sistema
               </p>
               <motion.button

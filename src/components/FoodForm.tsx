@@ -66,15 +66,15 @@ export default function FoodForm({ food, onSuccess, onCancel }: FoodFormProps) {
   };
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
+    <div className="bg-white rounded-lg shadow-lg p-6 border border-primary-200">
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+        <h2 className="text-2xl font-bold text-gray-900">
           {isEditing ? '✏️ Editar Verdura' : '➕ Agregar Nueva Verdura'}
         </h2>
         {onCancel && (
           <button
             onClick={onCancel}
-            className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+            className="text-gray-500 hover:text-gray-700"
           >
             ✕
           </button>
@@ -84,18 +84,18 @@ export default function FoodForm({ food, onSuccess, onCancel }: FoodFormProps) {
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
         {/* Nombre */}
         <div>
-          <label htmlFor="name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
             Nombre *
           </label>
           <input
             {...register('name')}
             type="text"
             id="name"
-            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 dark:bg-gray-700 dark:text-white"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
             placeholder="Ej: Tomate, Lechuga, Zanahoria..."
           />
           {errors.name && (
-            <p className="mt-1 text-sm text-red-600 dark:text-red-400">
+            <p className="mt-1 text-sm text-red-600">
               {errors.name.message}
             </p>
           )}
@@ -103,18 +103,18 @@ export default function FoodForm({ food, onSuccess, onCancel }: FoodFormProps) {
 
         {/* Descripción */}
         <div>
-          <label htmlFor="description" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-2">
             Descripción *
           </label>
           <textarea
             {...register('description')}
             id="description"
             rows={3}
-            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 dark:bg-gray-700 dark:text-white"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
             placeholder="Describe las características y beneficios de esta verdura..."
           />
           {errors.description && (
-            <p className="mt-1 text-sm text-red-600 dark:text-red-400">
+            <p className="mt-1 text-sm text-red-600">
               {errors.description.message}
             </p>
           )}
@@ -122,30 +122,30 @@ export default function FoodForm({ food, onSuccess, onCancel }: FoodFormProps) {
 
         {/* Imagen */}
         <div>
-          <label htmlFor="image" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          <label htmlFor="image" className="block text-sm font-medium text-gray-700 mb-2">
             URL de Imagen
           </label>
           <input
             {...register('image')}
             type="url"
             id="image"
-            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 dark:bg-gray-700 dark:text-white"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
             placeholder="https://ejemplo.com/imagen.jpg"
           />
           {errors.image && (
-            <p className="mt-1 text-sm text-red-600 dark:text-red-400">
+            <p className="mt-1 text-sm text-red-600">
               {errors.image.message}
             </p>
           )}
-          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+          <p className="mt-1 text-xs text-gray-500">
             Si no proporcionas una imagen, se usará una por defecto
           </p>
         </div>
 
         {/* Error de envío */}
         {submitError && (
-          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md p-3">
-            <p className="text-sm text-red-600 dark:text-red-400">
+          <div className="bg-red-50 border border-red-200 rounded-md p-3">
+            <p className="text-sm text-red-600">
               {submitError}
             </p>
           </div>

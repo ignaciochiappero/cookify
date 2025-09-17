@@ -42,7 +42,7 @@ export default function Home() {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-primary-50">
+    <div className="min-h-screen bg-white">
       {/* Hero Section */}
       <section className="relative overflow-hidden">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-16">
@@ -68,7 +68,7 @@ export default function Home() {
               <span className="text-primary-600 block">Cocina con IA</span>
             </h1>
             
-            <p className="text-xl text-gray-600 max-w-3xl mx-auto mb-8 leading-relaxed">
+            <p className="text-xl text-gray-800 max-w-3xl mx-auto mb-8 leading-relaxed">
               Genera recetas deliciosas y personalizadas con los ingredientes que tienes en casa. 
               Nuestra inteligencia artificial creará combinaciones perfectas para ti.
             </p>
@@ -80,8 +80,8 @@ export default function Home() {
                 transition={{ delay: 0.4 }}
                 className="space-y-4"
               >
-                <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-soft max-w-md mx-auto">
-                  <p className="text-gray-700 mb-4">
+                <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-soft max-w-md mx-auto border border-primary-200">
+                  <p className="text-gray-800 mb-4">
                     ¡Bienvenido de vuelta, <span className="font-semibold text-primary-600">{session.user?.name}</span>! 👋
                   </p>
                   <div className="flex flex-col sm:flex-row gap-3">
@@ -95,7 +95,7 @@ export default function Home() {
                     </Link>
                     <Link
                       href="/recipes"
-                      className="flex items-center justify-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-3 px-6 rounded-xl transition-all duration-200"
+                      className="flex items-center justify-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-800 font-medium py-3 px-6 rounded-xl transition-all duration-200"
                     >
                       <BookOpen className="w-5 h-5" />
                       Mis Recetas
@@ -119,7 +119,7 @@ export default function Home() {
                 </Link>
                 <Link
                   href="/auth/signup"
-                  className="flex items-center justify-center gap-2 bg-white hover:bg-gray-50 text-gray-700 font-medium py-4 px-8 rounded-xl transition-all duration-200 shadow-soft border border-gray-200"
+                  className="flex items-center justify-center gap-2 bg-white hover:bg-gray-50 text-gray-800 font-medium py-4 px-8 rounded-xl transition-all duration-200 shadow-soft border border-gray-200"
                 >
                   <Users className="w-5 h-5" />
                   Crear Cuenta
@@ -131,7 +131,7 @@ export default function Home() {
       </section>
 
       {/* Stats Section */}
-      <section className="py-16 bg-white/50">
+      <section className="py-16 bg-gray-50/30">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -147,10 +147,10 @@ export default function Home() {
                 whileInView={{ opacity: 1, scale: 1 }}
                 transition={{ delay: index * 0.1, duration: 0.5 }}
                 viewport={{ once: true }}
-                className="bg-white rounded-2xl p-8 shadow-soft"
+                className="bg-white rounded-2xl p-8 shadow-soft border border-primary-200"
               >
                 <div className="text-4xl font-bold text-primary-600 mb-2">{stat.number}</div>
-                <div className="text-gray-600 font-medium">{stat.label}</div>
+                <div className="text-gray-700 font-medium">{stat.label}</div>
               </motion.div>
             ))}
           </motion.div>
@@ -170,7 +170,7 @@ export default function Home() {
             <h2 className="text-4xl font-bold text-gray-900 mb-4">
               ¿Cómo funciona Cookify?
             </h2>
-            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+            <p className="text-xl text-gray-700 max-w-2xl mx-auto">
               Tres pasos simples para crear recetas increíbles
             </p>
           </motion.div>
@@ -183,7 +183,7 @@ export default function Home() {
                 whileInView={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.2, duration: 0.6 }}
                 viewport={{ once: true }}
-                className="bg-white rounded-2xl p-8 shadow-soft hover:shadow-medium transition-all duration-300 group"
+                className="bg-white rounded-2xl p-8 shadow-soft hover:shadow-medium transition-all duration-300 group border border-primary-200"
               >
                 <div className={`inline-flex p-3 rounded-xl bg-gray-50 group-hover:bg-primary-50 transition-colors duration-300 mb-6`}>
                   <feature.icon className={`w-8 h-8 ${feature.color}`} />
@@ -191,7 +191,7 @@ export default function Home() {
                 <h3 className="text-xl font-semibold text-gray-900 mb-3">
                   {feature.title}
                 </h3>
-                <p className="text-gray-600 leading-relaxed">
+                <p className="text-gray-700 leading-relaxed">
                   {feature.description}
                 </p>
               </motion.div>
@@ -202,7 +202,7 @@ export default function Home() {
 
       {/* CTA Section */}
       {!session && (
-        <section className="py-20 bg-primary-600">
+        <section className="py-20 bg-primary-50">
           <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -210,23 +210,23 @@ export default function Home() {
               transition={{ duration: 0.6 }}
               viewport={{ once: true }}
             >
-              <h2 className="text-4xl font-bold text-white mb-4">
+              <h2 className="text-4xl font-bold text-gray-900 mb-4">
                 ¿Listo para comenzar?
               </h2>
-              <p className="text-xl text-primary-100 mb-8">
+              <p className="text-xl text-gray-700 mb-8">
                 Únete a miles de usuarios que ya están creando recetas increíbles
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <Link
                   href="/auth/signup"
-                  className="flex items-center justify-center gap-2 bg-white hover:bg-gray-50 text-primary-600 font-medium py-4 px-8 rounded-xl transition-all duration-200 shadow-medium"
+                  className="flex items-center justify-center gap-2 bg-white hover:bg-gray-50 text-primary-600 font-medium py-4 px-8 rounded-xl transition-all duration-200 shadow-medium border border-primary-200"
                 >
                   <Sparkles className="w-5 h-5" />
                   Crear Cuenta Gratis
                 </Link>
                 <Link
                   href="/auth/signin"
-                  className="flex items-center justify-center gap-2 bg-primary-700 hover:bg-primary-800 text-white font-medium py-4 px-8 rounded-xl transition-all duration-200 border border-primary-500"
+                  className="flex items-center justify-center gap-2 bg-primary-600 hover:bg-primary-700 text-white font-medium py-4 px-8 rounded-xl transition-all duration-200 shadow-medium"
                 >
                   Ya tengo cuenta
                 </Link>
@@ -237,17 +237,17 @@ export default function Home() {
       )}
 
       {/* Footer */}
-      <footer className="bg-gray-900 text-white py-12">
+      <footer className="bg-gray-50 text-gray-800 py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center">
             <div className="flex justify-center mb-4">
-              <ChefHat className="w-8 h-8 text-primary-400" />
+              <ChefHat className="w-8 h-8 text-primary-600" />
             </div>
             <h3 className="text-2xl font-bold mb-2">Cookify</h3>
-            <p className="text-gray-400 mb-6">
+            <p className="text-gray-600 mb-6">
               Tu asistente de cocina con inteligencia artificial
             </p>
-            <div className="flex justify-center gap-6 text-sm text-gray-400">
+            <div className="flex justify-center gap-6 text-sm text-gray-600">
               <span>© 2024 Cookify</span>
               <span>•</span>
               <span>Hecho con ❤️ y IA</span>

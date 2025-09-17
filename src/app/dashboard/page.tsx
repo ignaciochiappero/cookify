@@ -225,7 +225,7 @@ export default function Dashboard() {
 
   return (
     <ProtectedRoute>
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-primary-50">
+      <div className="min-h-screen bg-white">
         <Navbar />
         
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -249,7 +249,7 @@ export default function Dashboard() {
             <h1 className="text-4xl font-bold text-gray-900 mb-4">
               ¡Hola, {session?.user?.name}! 👋
             </h1>
-            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+            <p className="text-xl text-gray-700 max-w-2xl mx-auto">
               Selecciona los ingredientes que tienes disponibles y crea recetas increíbles con IA
             </p>
           </motion.div>
@@ -261,38 +261,38 @@ export default function Dashboard() {
             transition={{ delay: 0.3 }}
             className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8"
           >
-            <div className="bg-white rounded-2xl p-6 shadow-soft">
+            <div className="bg-white rounded-2xl p-6 shadow-soft border border-primary-200">
               <div className="flex items-center space-x-3">
                 <div className="bg-primary-100 p-3 rounded-xl">
                   <ShoppingCart className="w-6 h-6 text-primary-600" />
                 </div>
                 <div>
                   <div className="text-2xl font-bold text-gray-900">{allFoods.length}</div>
-                  <div className="text-gray-600">Ingredientes disponibles</div>
+                  <div className="text-gray-700">Ingredientes disponibles</div>
                 </div>
               </div>
             </div>
             
-            <div className="bg-white rounded-2xl p-6 shadow-soft">
+            <div className="bg-white rounded-2xl p-6 shadow-soft border border-primary-200">
               <div className="flex items-center space-x-3">
                 <div className="bg-accent-100 p-3 rounded-xl">
                   <CheckCircle className="w-6 h-6 text-accent-600" />
                 </div>
                 <div>
                   <div className="text-2xl font-bold text-gray-900">{selectedCount}</div>
-                  <div className="text-gray-600">Seleccionados</div>
+                  <div className="text-gray-700">Seleccionados</div>
                 </div>
               </div>
             </div>
             
-            <div className="bg-white rounded-2xl p-6 shadow-soft">
+            <div className="bg-white rounded-2xl p-6 shadow-soft border border-primary-200">
               <div className="flex items-center space-x-3">
                 <div className="bg-green-100 p-3 rounded-xl">
                   <Sparkles className="w-6 h-6 text-green-600" />
                 </div>
                 <div>
                   <div className="text-2xl font-bold text-gray-900">∞</div>
-                  <div className="text-gray-600">Recetas posibles</div>
+                  <div className="text-gray-700">Recetas posibles</div>
                 </div>
               </div>
             </div>
@@ -303,11 +303,11 @@ export default function Dashboard() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.4 }}
-            className="bg-white rounded-2xl p-6 shadow-soft mb-8"
+            className="bg-white rounded-2xl p-6 shadow-soft mb-8 border border-primary-200"
           >
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
               <div className="flex items-center space-x-4">
-                <div className="text-sm text-gray-600">
+                <div className="text-sm text-gray-700">
                   {selectedCount > 0 ? (
                     <span className="text-primary-600 font-medium">
                       {selectedCount} ingrediente{selectedCount !== 1 ? 's' : ''} seleccionado{selectedCount !== 1 ? 's' : ''}
@@ -387,8 +387,8 @@ export default function Dashboard() {
                     whileHover={{ y: -5 }}
                     className={`bg-white rounded-2xl p-6 shadow-soft hover:shadow-medium transition-all duration-300 cursor-pointer border-2 ${
                       isSelected 
-                        ? 'border-primary-200 bg-primary-50' 
-                        : 'border-transparent hover:border-gray-200'
+                        ? 'border-primary-300 bg-primary-50' 
+                        : 'border-primary-200 hover:border-primary-300'
                     }`}
                     onClick={() => toggleLocalSelection(food.id)}
                   >
@@ -401,7 +401,7 @@ export default function Dashboard() {
                         {food.name}
                       </h3>
                       
-                      <p className="text-sm text-gray-600 mb-4 line-clamp-2">
+                      <p className="text-sm text-gray-700 mb-4 line-clamp-2">
                         {food.description}
                       </p>
                       

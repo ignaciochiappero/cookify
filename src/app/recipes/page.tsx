@@ -93,7 +93,7 @@ export default function Recipes() {
 
   return (
     <ProtectedRoute>
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-primary-50">
+      <div className="min-h-screen bg-white">
         <Navbar />
         
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -117,7 +117,7 @@ export default function Recipes() {
             <h1 className="text-4xl font-bold text-gray-900 mb-4">
               Mis Recetas Generadas
             </h1>
-            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+            <p className="text-xl text-gray-700 max-w-2xl mx-auto">
               Recetas creadas con IA basadas en tus ingredientes disponibles
             </p>
           </motion.div>
@@ -129,38 +129,38 @@ export default function Recipes() {
             transition={{ delay: 0.3 }}
             className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12"
           >
-            <div className="bg-white rounded-2xl p-6 shadow-soft">
+            <div className="bg-white rounded-2xl p-6 shadow-soft border border-primary-200">
               <div className="flex items-center space-x-3">
                 <div className="bg-primary-100 p-3 rounded-xl">
                   <BookOpen className="w-6 h-6 text-primary-600" />
                 </div>
                 <div>
                   <div className="text-2xl font-bold text-gray-900">{recipes.length}</div>
-                  <div className="text-gray-600">Recetas creadas</div>
+                  <div className="text-gray-700">Recetas creadas</div>
                 </div>
               </div>
             </div>
             
-            <div className="bg-white rounded-2xl p-6 shadow-soft">
+            <div className="bg-white rounded-2xl p-6 shadow-soft border border-primary-200">
               <div className="flex items-center space-x-3">
                 <div className="bg-accent-100 p-3 rounded-xl">
                   <Sparkles className="w-6 h-6 text-accent-600" />
                 </div>
                 <div>
                   <div className="text-2xl font-bold text-gray-900">100%</div>
-                  <div className="text-gray-600">Generadas con IA</div>
+                  <div className="text-gray-700">Generadas con IA</div>
                 </div>
               </div>
             </div>
             
-            <div className="bg-white rounded-2xl p-6 shadow-soft">
+            <div className="bg-white rounded-2xl p-6 shadow-soft border border-primary-200">
               <div className="flex items-center space-x-3">
                 <div className="bg-green-100 p-3 rounded-xl">
                   <Star className="w-6 h-6 text-green-600" />
                 </div>
                 <div>
                   <div className="text-2xl font-bold text-gray-900">∞</div>
-                  <div className="text-gray-600">Posibilidades</div>
+                  <div className="text-gray-700">Posibilidades</div>
                 </div>
               </div>
             </div>
@@ -184,7 +184,7 @@ export default function Recipes() {
               <h2 className="text-2xl font-semibold text-gray-900 mb-4">
                 ¡Aún no tienes recetas!
               </h2>
-              <p className="text-gray-600 mb-8 max-w-md mx-auto">
+              <p className="text-gray-700 mb-8 max-w-md mx-auto">
                 Ve a tu dashboard, selecciona ingredientes y genera tu primera receta con IA
               </p>
               
@@ -215,7 +215,7 @@ export default function Recipes() {
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: index * 0.1 }}
                       whileHover={{ y: -5 }}
-                      className="bg-white rounded-2xl shadow-soft hover:shadow-strong transition-all duration-300 overflow-hidden"
+                      className="bg-white rounded-2xl shadow-soft hover:shadow-strong transition-all duration-300 overflow-hidden border border-primary-200"
                     >
                       {/* Recipe Header */}
                       <div className="bg-gradient-to-r from-primary-500 to-primary-600 p-6 text-white">
@@ -327,11 +327,11 @@ export default function Recipes() {
               transition={{ delay: 0.6 }}
               className="mt-16 text-center"
             >
-              <div className="bg-white rounded-2xl p-8 shadow-soft">
+              <div className="bg-white rounded-2xl p-8 shadow-soft border border-primary-200">
                 <h3 className="text-2xl font-bold text-gray-900 mb-4">
                   ¿Quieres crear más recetas?
                 </h3>
-                <p className="text-gray-600 mb-6">
+                <p className="text-gray-700 mb-6">
                   Ve a tu dashboard y experimenta con diferentes combinaciones de ingredientes
                 </p>
                 <Link

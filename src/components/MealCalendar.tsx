@@ -5,17 +5,32 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Plus, 
   CheckCircle,
-  X
+  X,
+  ChevronLeft,
+  ChevronRight,
+  Calendar as CalendarIcon,
+  Coffee,
+  Utensils,
+  Apple,
+  Moon,
+  Clock,
+  ChefHat
 } from 'lucide-react';
 import { 
   MealCalendarItem, 
   CreateMealCalendarItem, 
   MealType, 
-  MEAL_TYPE_LABELS, 
-  MEAL_TYPE_ICONS 
+  MEAL_TYPE_LABELS
 } from '@/types/meal-calendar';
 import { Recipe } from '@/types/recipe';
 
+// Iconos de Lucide para tipos de comida
+const MEAL_TYPE_LUCIDE_ICONS: Record<MealType, React.ComponentType<{ className?: string }>> = {
+  [MealType.BREAKFAST]: Coffee,
+  [MealType.LUNCH]: Utensils,
+  [MealType.SNACK]: Apple,
+  [MealType.DINNER]: Moon,
+};
 
 interface MealCalendarProps {
   recipes: Recipe[];
@@ -198,13 +213,18 @@ export default function MealCalendar({ recipes }: MealCalendarProps) {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">
-            Calendario de Comidas
-          </h2>
-          <p className="text-gray-600">
-            Planifica tus comidas diarias y organiza tu menú semanal
-          </p>
+        <div className="flex items-center space-x-3">
+          <div className="p-3 bg-primary-100 rounded-xl">
+            <CalendarIcon className="w-6 h-6 text-primary-600" />
+          </div>
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900 mb-1">
+              Calendario de Comidas
+            </h2>
+            <p className="text-gray-600">
+              Planifica tus comidas diarias y organiza tu menú semanal
+            </p>
+          </div>
         </div>
         <motion.button
           whileHover={{ scale: 1.05 }}
@@ -228,15 +248,15 @@ export default function MealCalendar({ recipes }: MealCalendarProps) {
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.9 }}
               onClick={() => navigateMonth('prev')}
-              className="p-2 text-gray-400 hover:text-primary-600 transition-colors"
+              className="p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all duration-200"
             >
-              ←
+              <ChevronLeft className="w-5 h-5" />
             </motion.button>
             <motion.button
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.9 }}
               onClick={() => setCurrentDate(new Date())}
-              className="px-3 py-1 text-sm text-gray-600 hover:text-primary-600 transition-colors"
+              className="px-3 py-1 text-sm text-gray-600 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all duration-200"
             >
               Hoy
             </motion.button>
@@ -244,9 +264,9 @@ export default function MealCalendar({ recipes }: MealCalendarProps) {
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.9 }}
               onClick={() => navigateMonth('next')}
-              className="p-2 text-gray-400 hover:text-primary-600 transition-colors"
+              className="p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all duration-200"
             >
-              →
+              <ChevronRight className="w-5 h-5" />
             </motion.button>
           </div>
         </div>
@@ -267,9 +287,9 @@ export default function MealCalendar({ recipes }: MealCalendarProps) {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: index * 0.01 }}
-              className={`min-h-[120px] p-2 border border-gray-100 ${
-                day.isCurrentMonth ? 'bg-white' : 'bg-gray-50'
-              } ${isToday(day.date) ? 'ring-2 ring-primary-500' : ''}`}
+              className={`min-h-[120px] p-3 border border-gray-100 rounded-lg ${
+                day.isCurrentMonth ? 'bg-white hover:bg-gray-50' : 'bg-gray-50'
+              } ${isToday(day.date) ? 'ring-2 ring-primary-500 bg-primary-50' : ''} transition-all duration-200`}
             >
               <div className="flex items-center justify-between mb-2">
                 <span className={`text-sm font-medium ${
@@ -282,9 +302,9 @@ export default function MealCalendar({ recipes }: MealCalendarProps) {
                     whileHover={{ scale: 1.1 }}
                     whileTap={{ scale: 0.9 }}
                     onClick={() => openFormForMeal(day.date, MealType.BREAKFAST)}
-                    className="w-4 h-4 text-gray-300 hover:text-primary-600 transition-colors"
+                    className="w-6 h-6 text-gray-300 hover:text-primary-600 hover:bg-primary-50 rounded-full transition-all duration-200 flex items-center justify-center"
                   >
-                    +
+                    <Plus className="w-3 h-3" />
                   </motion.button>
                 )}
               </div>
@@ -297,12 +317,12 @@ export default function MealCalendar({ recipes }: MealCalendarProps) {
                     <motion.div
                       key={mealType}
                       whileHover={{ scale: 1.02 }}
-                      className={`text-xs p-1 rounded cursor-pointer transition-all ${
+                      className={`text-xs p-2 rounded-lg cursor-pointer transition-all duration-200 ${
                         meal 
                           ? meal.isCompleted 
-                            ? 'bg-green-100 text-green-800' 
-                            : 'bg-primary-100 text-primary-800'
-                          : 'bg-gray-50 text-gray-400 hover:bg-gray-100'
+                            ? 'bg-green-100 text-green-800 border border-green-200' 
+                            : 'bg-primary-100 text-primary-800 border border-primary-200'
+                          : 'bg-gray-50 text-gray-400 hover:bg-gray-100 hover:text-gray-600 border border-gray-200'
                       }`}
                       onClick={() => {
                         if (meal) {
@@ -312,12 +332,15 @@ export default function MealCalendar({ recipes }: MealCalendarProps) {
                         }
                       }}
                     >
-                      <div className="flex items-center space-x-1">
-                        <span>{MEAL_TYPE_ICONS[mealType]}</span>
-                        <span className="truncate">
+                      <div className="flex items-center space-x-2">
+                        {(() => {
+                          const IconComponent = MEAL_TYPE_LUCIDE_ICONS[mealType];
+                          return <IconComponent className="w-4 h-4 text-primary-600 flex-shrink-0" />;
+                        })()}
+                        <span className="truncate text-sm font-medium">
                           {meal ? (meal.recipe?.title || meal.customMealName || MEAL_TYPE_LABELS[mealType]) : MEAL_TYPE_LABELS[mealType]}
                         </span>
-                        {meal?.isCompleted && <CheckCircle className="w-3 h-3" />}
+                        {meal?.isCompleted && <CheckCircle className="w-3 h-3 text-green-600 flex-shrink-0" />}
                       </div>
                     </motion.div>
                   );
@@ -346,12 +369,17 @@ export default function MealCalendar({ recipes }: MealCalendarProps) {
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-center justify-between mb-6">
-                <h3 className="text-xl font-bold text-gray-900">
-                  {editingMeal ? 'Editar Comida' : 'Agregar Comida'}
-                </h3>
+                <div className="flex items-center space-x-3">
+                  <div className="p-2 bg-primary-100 rounded-lg">
+                    <ChefHat className="w-5 h-5 text-primary-600" />
+                  </div>
+                  <h3 className="text-xl font-bold text-gray-900">
+                    {editingMeal ? 'Editar Comida' : 'Agregar Comida'}
+                  </h3>
+                </div>
                 <button
                   onClick={resetForm}
-                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                  className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-all duration-200"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -359,8 +387,9 @@ export default function MealCalendar({ recipes }: MealCalendarProps) {
 
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Fecha *
+                  <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center space-x-2">
+                    <CalendarIcon className="w-4 h-4 text-primary-600" />
+                    <span>Fecha *</span>
                   </label>
                   <input
                     type="date"
@@ -372,8 +401,9 @@ export default function MealCalendar({ recipes }: MealCalendarProps) {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Tipo de Comida *
+                  <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center space-x-2">
+                    <Utensils className="w-4 h-4 text-primary-600" />
+                    <span>Tipo de Comida *</span>
                   </label>
                   <select
                     value={formData.mealType}
@@ -383,15 +413,16 @@ export default function MealCalendar({ recipes }: MealCalendarProps) {
                   >
                     {mealTypes.map((mealType) => (
                       <option key={mealType} value={mealType}>
-                        {MEAL_TYPE_ICONS[mealType]} {MEAL_TYPE_LABELS[mealType]}
+                        {MEAL_TYPE_LABELS[mealType]}
                       </option>
                     ))}
                   </select>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Receta
+                  <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center space-x-2">
+                    <ChefHat className="w-4 h-4 text-primary-600" />
+                    <span>Receta</span>
                   </label>
                   <select
                     value={formData.recipeId}
@@ -408,8 +439,9 @@ export default function MealCalendar({ recipes }: MealCalendarProps) {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Nombre Personalizado
+                  <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center space-x-2">
+                    <ChefHat className="w-4 h-4 text-primary-600" />
+                    <span>Nombre Personalizado</span>
                   </label>
                   <input
                     type="text"
@@ -421,8 +453,9 @@ export default function MealCalendar({ recipes }: MealCalendarProps) {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Notas
+                  <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center space-x-2">
+                    <Clock className="w-4 h-4 text-primary-600" />
+                    <span>Notas</span>
                   </label>
                   <textarea
                     value={formData.notes}
@@ -437,16 +470,27 @@ export default function MealCalendar({ recipes }: MealCalendarProps) {
                   <button
                     type="button"
                     onClick={resetForm}
-                    className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors"
+                    className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors flex items-center justify-center space-x-2"
                   >
-                    Cancelar
+                    <X className="w-4 h-4" />
+                    <span>Cancelar</span>
                   </button>
                   <button
                     type="submit"
                     disabled={isLoading}
-                    className="flex-1 px-4 py-2 bg-primary-600 hover:bg-primary-700 disabled:bg-primary-300 disabled:text-primary-100 text-white rounded-md transition-colors"
+                    className="flex-1 px-4 py-2 bg-primary-600 hover:bg-primary-700 disabled:bg-primary-300 disabled:text-primary-100 text-white rounded-md transition-colors flex items-center justify-center space-x-2"
                   >
-                    {isLoading ? 'Guardando...' : (editingMeal ? 'Actualizar' : 'Agregar')}
+                    {isLoading ? (
+                      <>
+                        <Clock className="w-4 h-4 animate-spin" />
+                        <span>Guardando...</span>
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle className="w-4 h-4" />
+                        <span>{editingMeal ? 'Actualizar' : 'Agregar'}</span>
+                      </>
+                    )}
                   </button>
                 </div>
               </form>

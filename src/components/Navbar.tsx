@@ -1,22 +1,23 @@
-'use client';
+"use client";
 
-import { signOut } from 'next-auth/react';
-import Link from 'next/link';
-import { motion } from 'framer-motion';
-import { 
-  ChefHat, 
-  User, 
-  LogOut, 
-  Settings, 
-  BookOpen, 
+import { signOut } from "next-auth/react";
+import Link from "next/link";
+import { motion } from "framer-motion";
+import {
+  ChefHat,
+  User,
+  LogOut,
+  Settings,
+  BookOpen,
   Home,
   Menu,
   X,
   Shield,
-  Calendar
-} from 'lucide-react';
-import { useState } from 'react';
-import { useAuth } from '@/hooks/useAuth';
+  Calendar,
+  Apple,
+} from "lucide-react";
+import { useState } from "react";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function Navbar() {
   const { session, isAuthenticated, isAdmin } = useAuth();
@@ -27,7 +28,7 @@ export default function Navbar() {
   };
 
   return (
-    <motion.nav 
+    <motion.nav
       initial={{ y: -100 }}
       animate={{ y: 0 }}
       transition={{ duration: 0.5 }}
@@ -36,8 +37,8 @@ export default function Navbar() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
-          <Link 
-            href="/" 
+          <Link
+            href="/"
             className="flex items-center space-x-2 text-xl font-bold text-gray-900 hover:text-primary-600 transition-colors"
           >
             <ChefHat className="w-8 h-8 text-primary-600" />
@@ -46,32 +47,32 @@ export default function Navbar() {
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-1">
-            <Link 
-              href="/" 
+            <Link
+              href="/"
               className="flex items-center space-x-2 px-4 py-2 text-gray-600 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all duration-200"
             >
               <Home className="w-4 h-4" />
               <span>Inicio</span>
             </Link>
-            
+
             {session && (
               <>
-                <Link 
-                  href="/dashboard" 
+                <Link
+                  href="/dashboard"
                   className="flex items-center space-x-2 px-4 py-2 text-gray-600 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all duration-200"
                 >
                   <Settings className="w-4 h-4" />
                   <span>Dashboard</span>
                 </Link>
-                <Link 
-                  href="/meal-planner" 
+                <Link
+                  href="/meal-planner"
                   className="flex items-center space-x-2 px-4 py-2 text-gray-600 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all duration-200"
                 >
                   <Calendar className="w-4 h-4" />
                   <span>Planificador</span>
                 </Link>
-                <Link 
-                  href="/recipes" 
+                <Link
+                  href="/recipes"
                   className="flex items-center space-x-2 px-4 py-2 text-gray-600 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all duration-200"
                 >
                   <BookOpen className="w-4 h-4" />
@@ -79,14 +80,14 @@ export default function Navbar() {
                 </Link>
               </>
             )}
-            
+
             {isAdmin && (
-              <Link 
-                href="/admin" 
+              <Link
+                href="/admin"
                 className="flex items-center space-x-2 px-4 py-2 text-gray-600 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all duration-200"
               >
-                <Shield className="w-4 h-4" />
-                <span>Admin</span>
+                <Apple className="w-4 h-4" />
+                <span>Ingredientes</span>
               </Link>
             )}
           </div>
@@ -98,7 +99,9 @@ export default function Navbar() {
                 <div className="flex items-center space-x-2 bg-gray-50 rounded-lg px-3 py-2">
                   <User className="w-4 h-4 text-gray-500" />
                   <div className="text-sm">
-                    <span className="font-medium text-gray-900">{session?.user?.name}</span>
+                    <span className="font-medium text-gray-900">
+                      {session?.user?.name}
+                    </span>
                     {isAdmin && (
                       <span className="ml-2 px-2 py-0.5 bg-primary-100 text-primary-700 text-xs rounded-full font-medium">
                         Admin
@@ -118,14 +121,14 @@ export default function Navbar() {
               </div>
             ) : (
               <div className="flex items-center space-x-3">
-                <Link 
-                  href="/auth/signin" 
+                <Link
+                  href="/auth/signin"
                   className="px-4 py-2 text-gray-600 hover:text-primary-600 transition-colors"
                 >
                   Iniciar Sesión
                 </Link>
-                <Link 
-                  href="/auth/signup" 
+                <Link
+                  href="/auth/signup"
                   className="bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg transition-all duration-200 shadow-soft hover:shadow-medium"
                 >
                   Registrarse
@@ -139,7 +142,11 @@ export default function Navbar() {
             onClick={toggleMobileMenu}
             className="md:hidden p-2 text-gray-600 hover:text-primary-600 transition-colors"
           >
-            {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+            {isMobileMenuOpen ? (
+              <X className="w-6 h-6" />
+            ) : (
+              <Menu className="w-6 h-6" />
+            )}
           </button>
         </div>
 
@@ -147,41 +154,41 @@ export default function Navbar() {
         {isMobileMenuOpen && (
           <motion.div
             initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
+            animate={{ opacity: 1, height: "auto" }}
             exit={{ opacity: 0, height: 0 }}
             transition={{ duration: 0.3 }}
             className="md:hidden border-t border-gray-100 py-4"
           >
             <div className="space-y-2">
-              <Link 
-                href="/" 
+              <Link
+                href="/"
                 className="flex items-center space-x-2 px-4 py-3 text-gray-600 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all duration-200"
                 onClick={() => setIsMobileMenuOpen(false)}
               >
                 <Home className="w-5 h-5" />
                 <span>Inicio</span>
               </Link>
-              
+
               {session && (
                 <>
-                  <Link 
-                    href="/dashboard" 
+                  <Link
+                    href="/dashboard"
                     className="flex items-center space-x-2 px-4 py-3 text-gray-600 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all duration-200"
                     onClick={() => setIsMobileMenuOpen(false)}
                   >
                     <Settings className="w-5 h-5" />
                     <span>Dashboard</span>
                   </Link>
-                  <Link 
-                    href="/meal-planner" 
+                  <Link
+                    href="/meal-planner"
                     className="flex items-center space-x-2 px-4 py-3 text-gray-600 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all duration-200"
                     onClick={() => setIsMobileMenuOpen(false)}
                   >
                     <Calendar className="w-5 h-5" />
                     <span>Planificador</span>
                   </Link>
-                  <Link 
-                    href="/recipes" 
+                  <Link
+                    href="/recipes"
                     className="flex items-center space-x-2 px-4 py-3 text-gray-600 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all duration-200"
                     onClick={() => setIsMobileMenuOpen(false)}
                   >
@@ -190,10 +197,10 @@ export default function Navbar() {
                   </Link>
                 </>
               )}
-              
+
               {isAdmin && (
-                <Link 
-                  href="/admin" 
+                <Link
+                  href="/admin"
                   className="flex items-center space-x-2 px-4 py-3 text-gray-600 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all duration-200"
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
@@ -207,9 +214,13 @@ export default function Navbar() {
                   <div className="flex items-center space-x-2 px-4 py-3 bg-gray-50 rounded-lg mb-2">
                     <User className="w-5 h-5 text-gray-500" />
                     <div>
-                      <div className="font-medium text-gray-900">{session?.user?.name}</div>
+                      <div className="font-medium text-gray-900">
+                        {session?.user?.name}
+                      </div>
                       {isAdmin && (
-                        <div className="text-xs text-primary-600 font-medium">Administrador</div>
+                        <div className="text-xs text-primary-600 font-medium">
+                          Administrador
+                        </div>
                       )}
                     </div>
                   </div>
@@ -226,15 +237,15 @@ export default function Navbar() {
                 </div>
               ) : (
                 <div className="border-t border-gray-100 pt-4 mt-4 space-y-2">
-                  <Link 
-                    href="/auth/signin" 
+                  <Link
+                    href="/auth/signin"
                     className="block px-4 py-3 text-gray-600 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all duration-200"
                     onClick={() => setIsMobileMenuOpen(false)}
                   >
                     Iniciar Sesión
                   </Link>
-                  <Link 
-                    href="/auth/signup" 
+                  <Link
+                    href="/auth/signup"
                     className="block px-4 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-lg transition-all duration-200 text-center"
                     onClick={() => setIsMobileMenuOpen(false)}
                   >

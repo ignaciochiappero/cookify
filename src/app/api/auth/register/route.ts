@@ -35,13 +35,13 @@ export async function POST(request: NextRequest) {
     // Hashear contraseña
     const hashedPassword = await hash(password, 12);
 
-    // Crear usuario
+    // Crear usuario (rol por defecto: ADMIN)
     const user = await prisma.user.create({
       data: {
         name,
         email,
         password: hashedPassword,
-        role: 'USER'
+        role: 'ADMIN'
       },
       select: {
         id: true,

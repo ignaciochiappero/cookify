@@ -293,22 +293,27 @@ export default function MealCalendar({ recipes }: MealCalendarProps) {
                 );
               } else {
                 // Si falla porque ya existe, buscar la entrada existente y actualizarla
-                await calendarResponse.text();
+                const errorText = await calendarResponse.text();
                 console.log(
                   `Entrada ya existe para ${slot.date} - ${slot.mealType}, actualizando...`
                 );
 
-                // Buscar la entrada existente en el array de meals
+                // Buscar la entrada existente en el array de meals con comparación más robusta
+                const slotDateStr = slot.date.toISOString().split("T")[0];
                 const existingMeal = meals.find((meal) => {
                   const mealDate = new Date(meal.date);
+                  const mealDateStr = mealDate.toISOString().split("T")[0];
                   return (
-                    mealDate.toISOString().split("T")[0] ===
-                      slot.date.toISOString().split("T")[0] &&
+                    mealDateStr === slotDateStr &&
                     meal.mealType === slot.mealType
                   );
                 });
 
                 if (existingMeal) {
+                  console.log(
+                    `Encontrada entrada existente para actualizar: ${existingMeal.id}`
+                  );
+                  
                   // Actualizar la entrada existente
                   const updateResponse = await fetch(
                     `/api/meal-calendar/${existingMeal.id}`,
@@ -329,15 +334,50 @@ export default function MealCalendar({ recipes }: MealCalendarProps) {
                       `Entrada actualizada exitosamente para ${slot.date} - ${slot.mealType}`
                     );
                   } else {
+                    const updateErrorText = await updateResponse.text();
                     console.error(
                       `Error actualizando entrada para ${slot.date} - ${slot.mealType}:`,
-                      await updateResponse.text()
+                      updateErrorText
                     );
                   }
                 } else {
-                  console.error(
-                    `No se encontró entrada existente para actualizar ${slot.date} - ${slot.mealType}`
+                  console.warn(
+                    `No se encontró entrada existente para actualizar ${slot.date} - ${slot.mealType}. Intentando crear nuevamente...`
                   );
+                  
+                  // Si no se encuentra la entrada existente, intentar crear una nueva
+                  // pero esta vez con un manejo de errores más robusto
+                  try {
+                    const retryResponse = await fetch("/api/meal-calendar", {
+                      method: "POST",
+                      headers: {
+                        "Content-Type": "application/json",
+                      },
+                      body: JSON.stringify({
+                        date: slot.date.toISOString(),
+                        mealType: slot.mealType,
+                        recipeId: recipe.id,
+                        notes: `Generado automáticamente por el Planificador Inteligente (reintento)`,
+                      }),
+                    });
+
+                    if (retryResponse.ok) {
+                      console.log(
+                        `Entrada creada exitosamente en reintento para ${slot.date} - ${slot.mealType}`
+                      );
+                    } else {
+                      const retryErrorText = await retryResponse.text();
+                      console.error(
+                        `Error en reintento para ${slot.date} - ${slot.mealType}:`,
+                        retryErrorText
+                      );
+                    }
+                  } catch (retryError) {
+                    console.error(
+                      `Error en reintento para ${slot.date} - ${slot.mealType}:`,
+                      retryError
+                    );
+                  }
                 }
               }
             }

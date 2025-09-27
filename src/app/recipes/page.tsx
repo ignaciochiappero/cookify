@@ -46,6 +46,8 @@ export default function Recipes() {
   const [editingRecipe, setEditingRecipe] = useState<string | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [showDeleteAllModal, setShowDeleteAllModal] = useState(false);
+  const [isDeletingAll, setIsDeletingAll] = useState(false);
   
   const recipesPerPage = 6;
 
@@ -218,6 +220,32 @@ export default function Recipes() {
     }
   };
 
+  const handleDeleteAllRecipes = async () => {
+    try {
+      setIsDeletingAll(true);
+      
+      const response = await fetch('/api/recipes/delete-all', {
+        method: 'DELETE',
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        setShowDeleteAllModal(false);
+        // Recargar las recetas
+        fetchRecipes(1, [], '');
+        alert(`Se eliminaron ${result.data.deletedRecipes} recetas y ${result.data.deletedCalendarEntries} entradas del calendario exitosamente`);
+      } else {
+        alert(result.error || 'Error al eliminar todas las recetas');
+      }
+    } catch (error) {
+      console.error('Error eliminando todas las recetas:', error);
+      alert('Error de conexión al eliminar recetas');
+    } finally {
+      setIsDeletingAll(false);
+    }
+  };
+
   const filteredIngredients = availableIngredients.filter(ingredient =>
     ingredient.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -291,15 +319,28 @@ export default function Recipes() {
                     Filtrar por Ingredientes
                   </h2>
                 </div>
-                <button
-                  onClick={() => setShowFilters(!showFilters)}
-                  className="flex items-center space-x-2 text-primary-600 hover:text-primary-700 transition-colors"
-                >
-                  <span className="text-sm font-medium">
-                    {showFilters ? 'Ocultar' : 'Mostrar'} Filtros
-                  </span>
-                  <Filter className="w-4 h-4" />
-                </button>
+                <div className="flex items-center space-x-3">
+                  {recipes.length > 0 && (
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => setShowDeleteAllModal(true)}
+                      className="flex items-center space-x-2 bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-lg transition-all duration-200 shadow-medium hover:shadow-strong"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      <span>Eliminar Todas</span>
+                    </motion.button>
+                  )}
+                  <button
+                    onClick={() => setShowFilters(!showFilters)}
+                    className="flex items-center space-x-2 text-primary-600 hover:text-primary-700 transition-colors"
+                  >
+                    <span className="text-sm font-medium">
+                      {showFilters ? 'Ocultar' : 'Mostrar'} Filtros
+                    </span>
+                    <Filter className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
 
               {/* Selected Ingredients */}
@@ -817,6 +858,78 @@ export default function Recipes() {
                     </>
                   )}
                 </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Delete All Recipes Modal */}
+      <AnimatePresence>
+        {showDeleteAllModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white rounded-2xl p-6 max-w-md w-full shadow-strong border border-primary-200"
+            >
+              <div className="text-center">
+                <div className="w-16 h-16 mx-auto mb-4 bg-red-100 rounded-full flex items-center justify-center">
+                  <Trash2 className="w-8 h-8 text-red-600" />
+                </div>
+                
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                  ⚠️ Eliminar Todas las Recetas
+                </h3>
+                
+                <p className="text-gray-700 mb-6">
+                  Esta acción eliminará <strong>todas las {totalRecipes} recetas</strong> de la base de datos 
+                  y también <strong>todas las entradas del calendario de comidas</strong> asociadas.
+                </p>
+                
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+                  <p className="text-red-800 text-sm font-medium">
+                    ⚠️ Esta acción es irreversible y afectará a todos los usuarios del sistema.
+                  </p>
+                </div>
+                
+                <div className="flex space-x-3">
+                  <button
+                    onClick={() => setShowDeleteAllModal(false)}
+                    className="flex-1 px-4 py-3 text-gray-600 hover:text-gray-800 transition-colors font-medium"
+                  >
+                    Cancelar
+                  </button>
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={handleDeleteAllRecipes}
+                    disabled={isDeletingAll}
+                    className="flex-1 flex items-center justify-center space-x-2 bg-red-600 hover:bg-red-700 disabled:bg-red-300 disabled:text-red-100 text-white font-medium py-3 px-4 rounded-lg transition-all duration-200"
+                  >
+                    {isDeletingAll ? (
+                      <>
+                        <motion.div
+                          animate={{ rotate: 360 }}
+                          transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                          className="w-4 h-4 border-2 border-white border-t-transparent rounded-full"
+                        />
+                        <span>Eliminando...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Trash2 className="w-4 h-4" />
+                        <span>Eliminar Todas</span>
+                      </>
+                    )}
+                  </motion.button>
+                </div>
               </div>
             </motion.div>
           </motion.div>

@@ -4,7 +4,7 @@ import { z } from "zod";
 // Configuración para LM Studio local
 const provider = createOpenAICompatible({
   name: "local-gemma",
-  baseURL: "http://127.0.0.1:1234/v1",
+  baseURL: "http://192.168.80.1:1234/v1",
   apiKey: "sk-no-key-required", // Para modelos locales generalmente no se requiere API key
 });
 

@@ -209,7 +209,13 @@ export default function ImageAnalyzer({
       });
 
       if (!response.ok) {
-        throw new Error("Error al analizar la imagen");
+        const errorData = await response.json().catch(() => ({ error: "Error desconocido" }));
+        console.error("Error del servidor:", {
+          status: response.status,
+          statusText: response.statusText,
+          error: errorData
+        });
+        throw new Error(`Error al analizar la imagen: ${response.status} - ${errorData.error || response.statusText}`);
       }
 
       const data = await response.json();

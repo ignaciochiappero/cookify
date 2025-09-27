@@ -614,17 +614,18 @@ export async function analyzeIngredientImage(
     })
     .join(", ");
 
-  const prompt = `Analiza esta imagen de ingredientes/alimentos y compara con el inventario actual del usuario.
+  const prompt = `Eres un experto en análisis de imágenes de alimentos. Analiza DETALLADAMENTE la imagen proporcionada y identifica todos los ingredientes/alimentos que puedas ver.
 
-INVENTARIO ACTUAL: ${inventoryText}
+INVENTARIO ACTUAL DEL USUARIO: ${inventoryText}
 
-Por favor, analiza la imagen y:
-
-1. Identifica todos los ingredientes/alimentos visibles en la imagen
-2. Estima las cantidades aproximadas de cada ingrediente
-3. Determina qué ingredientes del inventario actual están presentes en la imagen
-4. Identifica qué ingredientes nuevos (no en el inventario) están en la imagen
+INSTRUCCIONES ESPECÍFICAS:
+1. MIRA CUIDADOSAMENTE la imagen y identifica CADA ingrediente/alimento visible
+2. Estima las cantidades reales que ves en la imagen (no uses cantidades genéricas)
+3. Compara con el inventario actual para determinar qué ya tiene el usuario
+4. Identifica ingredientes NUEVOS que no están en su inventario
 5. Sugiere ingredientes básicos que podrían faltar para cocinar
+
+IMPORTANTE: Analiza la imagen REAL, no uses ingredientes genéricos. Si la imagen muestra frutas, identifica las frutas específicas. Si muestra verduras, identifica las verduras específicas.
 
 IMPORTANTE: Responde ÚNICAMENTE en formato JSON válido, sin texto adicional, con la siguiente estructura exacta:
 {
@@ -655,20 +656,29 @@ IMPORTANTE: Responde ÚNICAMENTE en formato JSON válido, sin texto adicional, c
 
 CRÍTICO: Tu respuesta debe ser SOLO el JSON, sin explicaciones adicionales, sin markdown, sin texto antes o después del JSON.
 
-REGLAS:
+REGLAS IMPORTANTES:
+- NO uses ingredientes genéricos como "Tomates", "Cebollas", "Ajo" si no están realmente en la imagen
+- Analiza SOLO lo que realmente ves en la imagen
+- Si la imagen está vacía o no muestra alimentos, devuelve arrays vacíos
 - Usa solo las unidades: PIECE, GRAM, KILOGRAM, LITER, MILLILITER, CUP, TABLESPOON, TEASPOON, POUND, OUNCE
 - Usa solo las categorías: VEGETABLE, FRUIT, MEAT, DAIRY, GRAIN, LIQUID, SPICE, OTHER
 - confidence debe ser un número entre 0 y 1
 - quantity debe ser un número positivo
-- Responde en español`;
+- Responde en español
+
+EJEMPLO DE ANÁLISIS CORRECTO:
+- Si ves manzanas rojas en la imagen → "Manzanas rojas"
+- Si ves zanahorias → "Zanahorias"
+- Si ves pollo → "Pollo"
+- NO uses ingredientes que no estén visibles en la imagen`;
 
   try {
     // Preparar el contenido para el modelo
-    const content: (string | any)[] = [prompt];
-
-    // Agregar imagen si está disponible
+    let content: any;
+    
     if (image) {
       try {
+        console.log("Procesando imagen...");
         let imagePart;
         if (typeof window === "undefined" || image instanceof Buffer) {
           // En el servidor, usar buffer
@@ -681,17 +691,65 @@ REGLAS:
           // En el cliente, usar File
           imagePart = await fileToGenerativePart(image as File);
         }
-        content.push(imagePart);
+        
+        // Formato correcto para el AI SDK - usar messages en lugar de prompt
+        content = [
+          {
+            role: "user",
+            content: [
+              {
+                type: "text",
+                text: prompt,
+              },
+              imagePart
+            ]
+          }
+        ];
+        
+        console.log("Contenido con imagen preparado:", {
+          hasImage: true,
+          promptLength: prompt.length,
+          imageType: imagePart.type,
+          imageMimeType: imagePart.mimeType
+        });
       } catch (error) {
         console.error("Error procesando imagen:", error);
         // Continuar sin imagen si hay error
+        content = prompt;
       }
+    } else {
+      content = prompt;
+      console.log("Sin imagen, usando solo texto");
     }
 
-    const result = await generateText({
-      model: model,
-      prompt: prompt,
-    });
+    console.log("Enviando contenido al modelo...");
+    console.log("Tipo de contenido:", typeof content);
+    console.log("Es array:", Array.isArray(content));
+    if (Array.isArray(content)) {
+      console.log("Longitud del array:", content.length);
+      console.log("Primer elemento:", typeof content[0]);
+      console.log("Segundo elemento:", content[1] ? typeof content[1] : "none");
+    }
+    
+    let result;
+    try {
+      // Usar messages si es un array con role, sino usar prompt
+      if (Array.isArray(content) && content[0]?.role) {
+        result = await generateText({
+          model: model,
+          messages: content,
+        });
+      } else {
+        result = await generateText({
+          model: model,
+          prompt: content,
+        });
+      }
+      console.log("Llamada al modelo exitosa");
+    } catch (error) {
+      console.error("Error en generateText:", error);
+      throw error;
+    }
 
     // Parsear la respuesta del modelo local
     const analysisData = parseModelResponse(result.text);

@@ -46,13 +46,41 @@ function parseMarkdownResponse(text: string): unknown {
       "Parseando respuesta Markdown:",
       text.substring(0, 200) + "..."
     );
+    console.log("🔍 DEBUG: Texto completo de la IA:", text);
 
-    // Extraer título (primera línea que empiece con ** o ##)
-    let titleMatch = text.match(/##\s*(.+)/);
+    // Extraer título - buscar patrón "**Título:** [título en línea siguiente]"
+    let titleMatch = text.match(/\*\*Título:\*\*\s*(.+)/);
     if (!titleMatch) {
+      // Buscar patrón "**Título:**" seguido de salto de línea y el título
+      titleMatch = text.match(/\*\*Título:\*\*\s*\n\s*(.+)/);
+    }
+    if (!titleMatch) {
+      // Buscar patrón "## Título"
+      titleMatch = text.match(/##\s*(.+)/);
+    }
+    if (!titleMatch) {
+      // Buscar patrón "**Título**" (sin dos puntos)
       titleMatch = text.match(/\*\*(.+?)\*\*/);
     }
+    if (!titleMatch) {
+      // Buscar patrón "Título: [título real]"
+      titleMatch = text.match(/Título:\s*(.+)/);
+    }
+    if (!titleMatch) {
+      // Buscar cualquier línea que contenga "Título" seguido de dos puntos
+      titleMatch = text.match(/Título[:\s]+(.+)/);
+    }
+    if (!titleMatch) {
+      // Buscar la primera línea que no sea vacía
+      const lines = text.split('\n').filter(line => line.trim());
+      if (lines.length > 0) {
+        titleMatch = ["", lines[0].trim()];
+      }
+    }
+    
+    console.log("🔍 DEBUG: titleMatch encontrado:", titleMatch);
     const title = titleMatch ? titleMatch[1].trim() : "Receta Generada";
+    console.log("🔍 DEBUG: Título extraído:", title);
 
     // Extraer descripción (texto después del título hasta los ingredientes)
     let descriptionMatch = text.match(

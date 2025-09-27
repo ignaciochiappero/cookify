@@ -298,6 +298,9 @@ export default function ImageAnalyzer({
             console.log(`✅ DEBUG: Datos de respuesta para ${mealType}:`, responseData);
 
             const recipe = responseData.recipe;
+            console.log(`🔍 DEBUG: Datos completos de respuesta para ${mealType}:`, responseData);
+            console.log(`🔍 DEBUG: Recipe object para ${mealType}:`, recipe);
+            
             if (recipe && recipe.id) {
               console.log(`🎯 DEBUG: Receta obtenida para ${mealType}:`, {
                 id: recipe.id,
@@ -311,17 +314,21 @@ export default function ImageAnalyzer({
                 targetDate.setDate(targetDate.getDate() + dayOffset);
 
                 try {
+                  const calendarData = {
+                    date: targetDate.toISOString(),
+                    mealType: mealType,
+                    recipeId: recipe.id,
+                    notes: `Generado automáticamente desde análisis de imagen - ${new Date().toLocaleDateString()}`,
+                  };
+                  
+                  console.log(`📤 DEBUG: Enviando al calendario para ${mealType}:`, calendarData);
+                  
                   const calendarResponse = await fetch("/api/meal-calendar", {
                     method: "POST",
                     headers: {
                       "Content-Type": "application/json",
                     },
-                    body: JSON.stringify({
-                      date: targetDate.toISOString(),
-                      mealType: mealType,
-                      recipeId: recipe.id,
-                      notes: `Generado automáticamente desde análisis de imagen - ${new Date().toLocaleDateString()}`,
-                    }),
+                    body: JSON.stringify(calendarData),
                   });
 
                   if (calendarResponse.ok) {

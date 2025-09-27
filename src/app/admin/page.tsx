@@ -142,6 +142,8 @@ export default function Admin() {
   const [saving, setSaving] = useState(false);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingFood, setEditingFood] = useState<Food | null>(null);
+  const [isDeletingAll, setIsDeletingAll] = useState(false);
+  const [showDeleteAllModal, setShowDeleteAllModal] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -244,6 +246,31 @@ export default function Admin() {
       }
     } catch {
       alert('Error de conexión');
+    }
+  };
+
+  const handleDeleteAll = async () => {
+    try {
+      setIsDeletingAll(true);
+      
+      const response = await fetch('/api/food/delete-all', {
+        method: 'DELETE',
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        await fetchFoods();
+        setShowDeleteAllModal(false);
+        alert(`Se eliminaron ${result.data.deletedFoods} ingredientes y ${result.data.deletedInventory} elementos del inventario exitosamente`);
+      } else {
+        alert(result.error || 'Error al eliminar todos los ingredientes');
+      }
+    } catch (error) {
+      console.error('Error eliminando todos los ingredientes:', error);
+      alert('Error de conexión al eliminar ingredientes');
+    } finally {
+      setIsDeletingAll(false);
     }
   };
 
@@ -373,15 +400,29 @@ export default function Admin() {
                 </p>
               </div>
               
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={() => setIsFormOpen(true)}
-                className="flex items-center space-x-2 bg-primary-600 hover:bg-primary-700 text-white font-medium py-3 px-6 rounded-xl transition-all duration-200 shadow-medium hover:shadow-strong"
-              >
-                <Plus className="w-5 h-5" />
-                <span>Agregar Ingrediente</span>
-              </motion.button>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => setIsFormOpen(true)}
+                  className="flex items-center space-x-2 bg-primary-600 hover:bg-primary-700 text-white font-medium py-3 px-6 rounded-xl transition-all duration-200 shadow-medium hover:shadow-strong"
+                >
+                  <Plus className="w-5 h-5" />
+                  <span>Agregar Ingrediente</span>
+                </motion.button>
+                
+                {foods.length > 0 && (
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => setShowDeleteAllModal(true)}
+                    className="flex items-center space-x-2 bg-red-600 hover:bg-red-700 text-white font-medium py-3 px-6 rounded-xl transition-all duration-200 shadow-medium hover:shadow-strong"
+                  >
+                    <Trash2 className="w-5 h-5" />
+                    <span>Eliminar Todos</span>
+                  </motion.button>
+                )}
+              </div>
             </div>
           </motion.div>
 
@@ -644,6 +685,79 @@ export default function Admin() {
                     </motion.button>
                   </div>
                 </form>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Modal de Confirmación para Eliminar Todos */}
+        <AnimatePresence>
+          {showDeleteAllModal && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50"
+              onClick={(e) => e.target === e.currentTarget && setShowDeleteAllModal(false)}
+            >
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                className="bg-white rounded-2xl p-6 w-full max-w-md shadow-strong"
+              >
+                <div className="text-center">
+                  <div className="w-16 h-16 mx-auto mb-4 bg-red-100 rounded-full flex items-center justify-center">
+                    <Trash2 className="w-8 h-8 text-red-600" />
+                  </div>
+                  
+                  <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                    ⚠️ Eliminar Todos los Ingredientes
+                  </h3>
+                  
+                  <p className="text-gray-700 mb-6">
+                    Esta acción eliminará <strong>todos los {foods.length} ingredientes</strong> de la base de datos 
+                    y también <strong>todos los elementos del inventario</strong> de todos los usuarios.
+                  </p>
+                  
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+                    <p className="text-red-800 text-sm font-medium">
+                      ⚠️ Esta acción es irreversible y afectará a todos los usuarios del sistema.
+                    </p>
+                  </div>
+                  
+                  <div className="flex space-x-3">
+                    <button
+                      onClick={() => setShowDeleteAllModal(false)}
+                      className="flex-1 px-4 py-3 text-gray-600 hover:text-gray-800 transition-colors font-medium"
+                    >
+                      Cancelar
+                    </button>
+                    <motion.button
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={handleDeleteAll}
+                      disabled={isDeletingAll}
+                      className="flex-1 flex items-center justify-center space-x-2 bg-red-600 hover:bg-red-700 disabled:bg-red-300 disabled:text-red-100 text-white font-medium py-3 px-4 rounded-lg transition-all duration-200"
+                    >
+                      {isDeletingAll ? (
+                        <>
+                          <motion.div
+                            animate={{ rotate: 360 }}
+                            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                            className="w-4 h-4 border-2 border-white border-t-transparent rounded-full"
+                          />
+                          <span>Eliminando...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Trash2 className="w-4 h-4" />
+                          <span>Eliminar Todos</span>
+                        </>
+                      )}
+                    </motion.button>
+                  </div>
+                </div>
               </motion.div>
             </motion.div>
           )}

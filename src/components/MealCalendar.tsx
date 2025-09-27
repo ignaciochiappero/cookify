@@ -1025,9 +1025,14 @@ export default function MealCalendar({ recipes }: MealCalendarProps) {
                   </div>
                   <div>
                     <h3 className="text-xl font-bold text-gray-900">
-                      {selectedRecipeMeal.recipe?.title ||
-                        selectedRecipeMeal.customMealName ||
-                        "Comida Programada"}
+                      {(() => {
+                        console.log("🔍 DEBUG: selectedRecipeMeal:", selectedRecipeMeal);
+                        console.log("🔍 DEBUG: selectedRecipeMeal.recipe:", selectedRecipeMeal.recipe);
+                        console.log("🔍 DEBUG: selectedRecipeMeal.recipe?.title:", selectedRecipeMeal.recipe?.title);
+                        return selectedRecipeMeal.recipe?.title ||
+                          selectedRecipeMeal.customMealName ||
+                          "Comida Programada";
+                      })()}
                     </h3>
                     <p className="text-sm text-gray-600">
                       {new Date(selectedRecipeMeal.date).toLocaleDateString(

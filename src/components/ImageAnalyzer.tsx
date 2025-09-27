@@ -57,6 +57,7 @@ export default function ImageAnalyzer({
   >([]);
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [planningDays, setPlanningDays] = useState(3);
+  const [selectedMealTypes, setSelectedMealTypes] = useState<string[]>(['BREAKFAST', 'LUNCH', 'DINNER']);
   const [showIngredientReview, setShowIngredientReview] = useState(false);
   const [editingIngredient, setEditingIngredient] = useState<number | null>(
     null
@@ -158,6 +159,10 @@ export default function ImageAnalyzer({
         if (result.data.errors > 0) {
           setError(`Se agregaron ${result.data.successful} ingredientes exitosamente, pero hubo ${result.data.errors} errores.`);
         }
+
+        // Los ingredientes se han agregado exitosamente
+        // Ahora el usuario puede seleccionar tipos de comida y generar recetas manualmente
+        console.log("🚀 DEBUG: Ingredientes agregados exitosamente. El usuario puede ahora seleccionar tipos de comida y generar recetas.");
       } else {
         console.error(`❌ DEBUG: Error en la transacción:`, result);
         throw new Error(`Error en la transacción: ${result.error || "Error desconocido"}`);
@@ -254,78 +259,144 @@ export default function ImageAnalyzer({
     setError("");
 
     try {
-      // Convertir currentInventory al formato correcto
-      const formattedCurrentInventory = (
-        currentInventory as InventoryItem[]
-      ).map((item) => ({
-        name: item.food?.name || item.name || "Ingrediente",
-        quantity: item.quantity || 1,
-        unit: item.unit || FoodUnit.PIECE,
-        category: item.food?.category || item.category || FoodCategory.OTHER,
-      }));
+      console.log("🚀 DEBUG: Iniciando generación de recetas como MealCalendar");
 
-      // Convertir missingIngredients al formato correcto
-      const formattedMissingIngredients = missingIngredients.map((item) => ({
-        name: item.name,
-        quantity: item.quantity,
-        unit: item.unit,
-        category: item.category,
-      }));
+      // Generar recetas para los tipos de comida seleccionados
+      const mealTypes = selectedMealTypes;
+      const generatedRecipes = [];
 
-      // Combinar inventario actual con ingredientes detectados
-      const combinedInventory = [
-        ...formattedCurrentInventory,
-        ...formattedMissingIngredients,
-      ];
+      for (const mealType of mealTypes) {
+        try {
+          console.log(`🔍 DEBUG: Generando receta para ${mealType}...`);
 
-      console.log(
-        "Inventario combinado para plan de comidas:",
-        combinedInventory
-      );
+          const requestBody = {
+            mealType: mealType,
+            servings: 4,
+            suggestIngredients: true,
+          };
 
-      if (combinedInventory.length === 0) {
-        setError(
-          "No hay ingredientes disponibles para generar un plan de comidas"
-        );
+          console.log(`📤 DEBUG: Enviando solicitud para ${mealType}:`, requestBody);
+
+          const response = await fetch("/api/recipes/generate-from-inventory", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(requestBody),
+            // Timeout más largo para generación de recetas (5 minutos)
+            signal: AbortSignal.timeout(300000),
+          });
+
+          console.log(`📡 DEBUG: Respuesta para ${mealType}:`, {
+            status: response.status,
+            ok: response.ok,
+            statusText: response.statusText,
+          });
+
+          if (response.ok) {
+            const responseData = await response.json();
+            console.log(`✅ DEBUG: Datos de respuesta para ${mealType}:`, responseData);
+
+            const recipe = responseData.recipe;
+            if (recipe && recipe.id) {
+              console.log(`🎯 DEBUG: Receta obtenida para ${mealType}:`, {
+                id: recipe.id,
+                title: recipe.title,
+                description: recipe.description?.substring(0, 100) + "...",
+              });
+
+              // Crear entrada en el calendario para hoy + días futuros
+              for (let dayOffset = 0; dayOffset < planningDays; dayOffset++) {
+                const targetDate = new Date();
+                targetDate.setDate(targetDate.getDate() + dayOffset);
+
+                try {
+                  const calendarResponse = await fetch("/api/meal-calendar", {
+                    method: "POST",
+                    headers: {
+                      "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                      date: targetDate.toISOString(),
+                      mealType: mealType,
+                      recipeId: recipe.id,
+                      notes: `Generado automáticamente desde análisis de imagen - ${new Date().toLocaleDateString()}`,
+                    }),
+                  });
+
+                  if (calendarResponse.ok) {
+                    console.log(`✅ DEBUG: Entrada creada para ${targetDate.toDateString()} - ${mealType}`);
+                    generatedRecipes.push({
+                      date: targetDate,
+                      mealType: mealType,
+                      recipe: recipe,
+                    });
+                  } else {
+                    console.log(`⚠️ DEBUG: Entrada ya existe para ${targetDate.toDateString()} - ${mealType}, actualizando...`);
+                    
+                    // Si ya existe, intentar actualizar
+                    const errorText = await calendarResponse.text();
+                    console.log(`📝 DEBUG: Error al crear entrada:`, errorText);
+                  }
+                } catch (calendarError) {
+                  console.error(`❌ DEBUG: Error creando entrada para ${targetDate.toDateString()} - ${mealType}:`, calendarError);
+                }
+              }
+            } else {
+              console.error(`❌ DEBUG: No se pudo obtener la receta para ${mealType}:`, responseData);
+            }
+          } else {
+            // Obtener el texto de error de manera más robusta
+            let errorText = "";
+            try {
+              errorText = await response.text();
+            } catch (textError) {
+              errorText = "No se pudo obtener el texto de error";
+            }
+            
+            console.error(`❌ DEBUG: Error en API de generación para ${mealType}:`);
+            console.error(`  - Status: ${response.status}`);
+            console.error(`  - Status Text: ${response.statusText}`);
+            console.error(`  - Error Text: ${errorText}`);
+            console.error(`  - URL: ${response.url}`);
+            console.error(`  - Headers:`, Object.fromEntries(response.headers.entries()));
+            
+            // También intentar parsear como JSON si es posible
+            try {
+              const errorJson = JSON.parse(errorText);
+              console.error(`❌ DEBUG: Error JSON para ${mealType}:`, errorJson);
+            } catch (jsonError) {
+              console.error(`❌ DEBUG: Error no es JSON para ${mealType}:`, errorText);
+            }
+          }
+        } catch (error) {
+          console.error(`❌ DEBUG: Error generando receta para ${mealType}:`, error);
+        }
+      }
+
+      console.log(`✅ DEBUG: Generación completada. ${generatedRecipes.length} recetas creadas.`);
+      
+      if (generatedRecipes.length === 0) {
+        setError("No se pudieron generar recetas. Intenta con más ingredientes o verifica que LM Studio esté funcionando.");
         return;
       }
 
-      const response = await fetch("/api/generate-meal-plan", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          inventory: combinedInventory,
-          days: planningDays,
-          startDate: new Date().toISOString().split("T")[0],
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        console.error("Error response:", response.status, errorData);
-        throw new Error(
-          `Error al generar el plan de comidas: ${
-            errorData.error || response.statusText
-          }`
-        );
-      }
-
-      const data = await response.json();
-      console.log("Plan de comidas generado exitosamente:", data);
-      onMealPlanGenerated(data.mealPlan);
+      // Notificar al componente padre que se generaron recetas
+      onMealPlanGenerated(generatedRecipes);
+      
+      // Mostrar mensaje de éxito
+      setError(`✅ Se generaron ${generatedRecipes.length} recetas exitosamente y se agregaron al calendario.`);
+      
     } catch (error) {
-      console.error("Error:", error);
+      console.error("❌ DEBUG: Error general en generación de recetas:", error);
 
-      // Mostrar mensaje específico para error de cuota
       if (error instanceof Error && error.message.includes("cuota")) {
         setError(
           "Límite de cuota de API excedido. Por favor, intenta de nuevo mañana o considera actualizar tu plan de API."
         );
       } else {
         setError(
-          "Error al generar el plan de comidas. Por favor, intenta de nuevo."
+          "Error al generar las recetas. Por favor, intenta de nuevo."
         );
       }
     } finally {
@@ -880,6 +951,39 @@ export default function ImageAnalyzer({
                   max="7"
                 />
               </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Tipos de comida a generar
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { value: 'BREAKFAST', label: 'Desayuno' },
+                    { value: 'LUNCH', label: 'Almuerzo' },
+                    { value: 'SNACK', label: 'Merienda' },
+                    { value: 'DINNER', label: 'Cena' }
+                  ].map((meal) => (
+                    <label key={meal.value} className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        checked={selectedMealTypes.includes(meal.value)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedMealTypes([...selectedMealTypes, meal.value]);
+                          } else {
+                            setSelectedMealTypes(selectedMealTypes.filter(type => type !== meal.value));
+                          }
+                        }}
+                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                      <span className="text-sm text-gray-700">{meal.label}</span>
+                    </label>
+                  ))}
+                </div>
+                {selectedMealTypes.length === 0 && (
+                  <p className="text-red-500 text-sm mt-1">Selecciona al menos un tipo de comida</p>
+                )}
+              </div>
             </div>
           </div>
 
@@ -938,25 +1042,27 @@ export default function ImageAnalyzer({
               </motion.button>
             )}
 
-            <motion.button
-              onClick={generateMealPlan}
-              disabled={isGeneratingPlan}
-              className="flex-1 bg-blue-500 text-white py-3 px-6 rounded-xl font-semibold hover:bg-blue-600 transition-colors disabled:opacity-50"
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-            >
-              {isGeneratingPlan ? (
-                <div className="flex items-center justify-center space-x-2">
-                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                  <span>Generando plan...</span>
-                </div>
-              ) : (
-                <div className="flex items-center justify-center space-x-2">
-                  <Plus className="h-5 w-5" />
-                  <span>Generar Plan de Comidas</span>
-                </div>
-              )}
-            </motion.button>
+            {ingredientsAdded && (
+              <motion.button
+                onClick={generateMealPlan}
+                disabled={isGeneratingPlan || selectedMealTypes.length === 0}
+                className="flex-1 bg-blue-500 text-white py-3 px-6 rounded-xl font-semibold hover:bg-blue-600 transition-colors disabled:opacity-50"
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                {isGeneratingPlan ? (
+                  <div className="flex items-center justify-center space-x-2">
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                    <span>Generando plan...</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-center space-x-2">
+                    <Plus className="h-5 w-5" />
+                    <span>Generar Plan de Comidas</span>
+                  </div>
+                )}
+              </motion.button>
+            )}
           </div>
         </div>
       )}

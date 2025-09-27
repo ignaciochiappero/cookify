@@ -85,9 +85,8 @@ export default function RecipeGenerator({
     // Mostrar mensaje de éxito
     alert(`¡Se agregaron ${ingredients.length} ingredientes al inventario exitosamente!`);
     
-    // Recargar la página para actualizar el inventario
-    // Esto es necesario porque el inventario se pasa como prop desde el componente padre
-    window.location.reload();
+    // Los ingredientes se han agregado exitosamente
+    // No necesitamos recargar la página ya que el estado se actualiza automáticamente
   };
 
   const handleMealPlanGenerated = async (mealPlan: unknown[]) => {
@@ -171,8 +170,7 @@ export default function RecipeGenerator({
       // Mostrar mensaje de éxito
       alert("¡Plan de comidas agregado exitosamente al calendario!");
       
-      // Recargar la página para mostrar los cambios
-      window.location.reload();
+      // El estado se actualiza automáticamente, no necesitamos recargar
     } catch (error) {
       console.error("Error al agregar plan de comidas al calendario:", error);
       alert(

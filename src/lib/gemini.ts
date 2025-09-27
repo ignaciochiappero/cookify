@@ -832,24 +832,35 @@ REGLAS:
 IMPORTANTE: Responde solo con el JSON, sin texto adicional antes o después.`;
 
   try {
+    console.log("🚀 DEBUG: Generando plan de comidas con prompt:", prompt.substring(0, 200) + "...");
+    
     const result = await generateText({
       model: model,
       prompt: prompt,
     });
 
+    console.log("🔍 DEBUG: Respuesta del modelo:", result.text.substring(0, 500) + "...");
+
     // Parsear la respuesta del modelo local
     const planData = parseModelResponse(result.text);
 
-    console.log("Respuesta de LM Studio para plan de comidas:", planData);
+    console.log("🔍 DEBUG: Plan data parseado:", planData);
 
     // Verificar que planData es un objeto
     if (typeof planData !== 'object' || planData === null) {
+      console.error("❌ DEBUG: planData no es un objeto válido:", planData);
       throw new Error('Datos de plan de comidas inválidos');
     }
 
     const data = planData as Record<string, unknown>;
 
-    return (data.mealPlan as MealPlan[]) || [];
+    console.log("🔍 DEBUG: Data extraído:", data);
+    console.log("🔍 DEBUG: mealPlan en data:", data.mealPlan);
+
+    const mealPlan = (data.mealPlan as MealPlan[]) || [];
+    console.log("✅ DEBUG: Plan de comidas final:", mealPlan);
+
+    return mealPlan;
   } catch (error) {
     console.error("Error generando plan de comidas:", error);
     if (error instanceof SyntaxError) {

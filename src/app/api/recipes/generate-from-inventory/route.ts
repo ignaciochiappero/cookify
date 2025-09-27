@@ -12,13 +12,18 @@ import {
 // POST - Generar receta basada en inventario disponible
 export async function POST(request: NextRequest) {
   try {
+    console.log("🚀 DEBUG: Recibida solicitud de generación de receta desde inventario");
+    
     // Verificar autenticación usando función centralizada
     const authResult = await verifyAuthentication();
     if (!authResult.success) {
+      console.error("❌ DEBUG: Error de autenticación:", authResult.error);
       return authResult.error!;
     }
 
     const body = await request.json();
+    console.log("🔍 DEBUG: Body recibido:", body);
+    
     const {
       mealType,
       servings,
@@ -27,6 +32,15 @@ export async function POST(request: NextRequest) {
       customDescription,
       preferredIngredients,
     } = body;
+
+    console.log("🔍 DEBUG: Parámetros extraídos:", {
+      mealType,
+      servings,
+      suggestIngredients,
+      customTitle,
+      customDescription,
+      preferredIngredients,
+    });
 
     // Obtener inventario del usuario
     const inventory = await prisma.userIngredientInventory.findMany({

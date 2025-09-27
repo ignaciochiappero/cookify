@@ -102,11 +102,6 @@ export default function Navbar() {
                     <span className="font-medium text-gray-900">
                       {session?.user?.name}
                     </span>
-                    {isAdmin && (
-                      <span className="ml-2 px-2 py-0.5 bg-primary-100 text-primary-700 text-xs rounded-full font-medium">
-                        Admin
-                      </span>
-                    )}
                   </div>
                 </div>
                 <motion.button

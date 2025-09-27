@@ -14,26 +14,22 @@ export async function DELETE() {
       );
     }
 
-    // Verificar que el usuario sea admin
-    if (session.user.role !== 'ADMIN') {
-      return NextResponse.json(
-        { error: 'Solo los administradores pueden realizar esta acción' },
-        { status: 403 }
-      );
-    }
+    console.log('🗑️ DEBUG: Iniciando eliminación masiva de ingredientes del usuario...');
 
-    console.log('🗑️ DEBUG: Iniciando eliminación masiva de ingredientes...');
-
-    // Eliminar todos los ingredientes usando una transacción
+    // Eliminar solo los ingredientes del usuario actual usando una transacción
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const result = await prisma.$transaction(async (tx: any) => {
-      // Primero eliminar todas las referencias en inventario
-      const deletedInventory = await tx.userIngredientInventory.deleteMany({});
-      console.log(`🗑️ DEBUG: Eliminados ${deletedInventory.count} elementos del inventario`);
+      // Primero eliminar todas las referencias en inventario del usuario
+      const deletedInventory = await tx.userIngredientInventory.deleteMany({
+        where: { userId: session.user.id }
+      });
+      console.log(`🗑️ DEBUG: Eliminados ${deletedInventory.count} elementos del inventario del usuario`);
 
-      // Luego eliminar todos los ingredientes
-      const deletedFoods = await tx.food.deleteMany({});
-      console.log(`🗑️ DEBUG: Eliminados ${deletedFoods.count} ingredientes`);
+      // Luego eliminar solo los ingredientes del usuario
+      const deletedFoods = await tx.food.deleteMany({
+        where: { userId: session.user.id }
+      });
+      console.log(`🗑️ DEBUG: Eliminados ${deletedFoods.count} ingredientes del usuario`);
 
       return {
         deletedFoods: deletedFoods.count,

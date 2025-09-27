@@ -123,26 +123,41 @@ export async function POST(request: NextRequest) {
           // Si no hay foodId, crear el alimento automáticamente
           if (!foodId && foodName) {
             console.log(`🔍 DEBUG: Creando alimento automáticamente: ${foodName}`);
+            console.log(`🔍 DEBUG: Usuario ID: ${session.user.id}`);
             
-            // Validar y mapear unidad y categoría
-            const validUnit = validateAndMapUnit(unit);
-            const validCategory = validateAndMapCategory(category || 'OTHER');
-            
-            console.log(`🔍 DEBUG: Unidad mapeada: ${unit} -> ${validUnit}`);
-            console.log(`🔍 DEBUG: Categoría mapeada: ${category} -> ${validCategory}`);
-            
-            const newFood = await tx.food.create({
-              data: {
+            // Verificar si ya existe un ingrediente con el mismo nombre para este usuario
+            const existingFood = await tx.food.findFirst({
+              where: {
                 name: foodName,
-                description: `Ingrediente detectado automáticamente: ${foodName}`,
-                image: "https://images.unsplash.com/photo-1546470427-5c1d2b0b8b8b?w=400&q=80",
-                category: validCategory,
-                unit: validUnit,
+                userId: session.user.id
               }
             });
 
-            actualFoodId = newFood.id;
-            console.log(`✅ DEBUG: Alimento creado: ${newFood.name} (ID: ${newFood.id})`);
+            if (existingFood) {
+              console.log(`⚠️ DEBUG: Ya existe ingrediente "${foodName}" para este usuario, usando existente`);
+              actualFoodId = existingFood.id;
+            } else {
+              // Validar y mapear unidad y categoría
+              const validUnit = validateAndMapUnit(unit);
+              const validCategory = validateAndMapCategory(category || 'OTHER');
+              
+              console.log(`🔍 DEBUG: Unidad mapeada: ${unit} -> ${validUnit}`);
+              console.log(`🔍 DEBUG: Categoría mapeada: ${category} -> ${validCategory}`);
+              
+              const newFood = await tx.food.create({
+                data: {
+                  name: foodName,
+                  description: `Ingrediente detectado automáticamente: ${foodName}`,
+                  image: "https://images.unsplash.com/photo-1546470427-5c1d2b0b8b8b?w=400&q=80",
+                  category: validCategory,
+                  unit: validUnit,
+                  userId: session.user.id, // Asignar al usuario actual
+                }
+              });
+
+              actualFoodId = newFood.id;
+              console.log(`✅ DEBUG: Alimento creado: ${newFood.name} (ID: ${newFood.id})`);
+            }
           }
 
           // Verificar que tenemos un foodId válido

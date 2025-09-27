@@ -18,6 +18,12 @@ export async function GET() {
       );
     }
     const foods = await prisma.food.findMany({
+      where: {
+        OR: [
+          { userId: session.user.id }, // Ingredientes del usuario
+          { userId: null } // Ingredientes globales (admin)
+        ]
+      },
       orderBy: {
         createdAt: "desc",
       },
@@ -70,6 +76,24 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Verificar si ya existe un ingrediente con el mismo nombre para este usuario
+    const existingFood = await prisma.food.findFirst({
+      where: {
+        name: name.trim(),
+        userId: session.user.id
+      }
+    });
+
+    if (existingFood) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Ya tienes un ingrediente con este nombre",
+        },
+        { status: 400 }
+      );
+    }
+
     // Crear el nuevo ingrediente
     const newFood = await prisma.food.create({
       data: {
@@ -81,6 +105,7 @@ export async function POST(request: NextRequest) {
         icon: icon || null,
         category: category || "VEGETABLE",
         unit: unit || "PIECE",
+        userId: session.user.id, // Asignar al usuario actual
       },
     });
 

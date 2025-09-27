@@ -17,8 +17,12 @@ model Food {
   icon String?
   category FoodCategory @default(VEGETABLE)
   unit FoodUnit @default(PIECE)
+  userId String? // Hacer opcional para ingredientes globales (admin)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  
+  // Relación con el usuario propietario
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
   
   // Relación con preferencias de usuarios
   userPreferences UserFoodPreference[]
@@ -60,6 +64,9 @@ model User {
   emailVerified DateTime?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  
+  // Relación con ingredientes propios
+  foods Food[]
   
   // Relación con preferencias de alimentos
   foodPreferences UserFoodPreference[]

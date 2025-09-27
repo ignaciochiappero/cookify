@@ -417,15 +417,182 @@ export async function generateRecipeWithInventory(
     customTitle?: string;
     customDescription?: string;
     preferredIngredients?: string[];
+    userId?: string; // Necesario para buscar recetas existentes
   }
 ): Promise<GeneratedRecipeWithInventory> {
   // Extraer opciones
-  const { image, customTitle, customDescription, preferredIngredients } =
+  const { image, customTitle, customDescription, preferredIngredients, userId } =
     options || {};
 
   // Sistema de reintentos para manejar sobrecarga de API
   const maxRetries = 3;
   const baseDelay = 2000; // 2 segundos base
+
+  // PASO 1: Preseleccionar ingredientes según el tipo de comida
+  const preselectIngredientsForMealType = (inventory: InventoryIngredient[], mealType: MealType) => {
+    console.log(`🍽️ DEBUG: Preseleccionando ingredientes para ${mealType}...`);
+    
+    // Definir categorías de ingredientes por tipo de comida
+    const mealTypeCategories = {
+      'BREAKFAST': {
+        primary: ['huevos', 'pan', 'leche', 'yogur', 'queso', 'mantequilla', 'jamón', 'cereales', 'avena'],
+        secondary: ['frutas', 'mermelada', 'miel', 'café', 'té', 'galletas', 'bizcochos'],
+        avoid: ['carne', 'pollo', 'pescado', 'arroz', 'pasta', 'papas', 'cebolla', 'tomate']
+      },
+      'LUNCH': {
+        primary: ['carne', 'pollo', 'pescado', 'arroz', 'pasta', 'papas', 'cebolla', 'tomate', 'lechuga'],
+        secondary: ['queso', 'huevos', 'pan', 'aceite', 'sal', 'pimienta', 'especias'],
+        avoid: ['leche', 'yogur', 'cereales', 'mermelada', 'café', 'té']
+      },
+      'SNACK': {
+        primary: ['frutas', 'yogur', 'galletas', 'bizcochos', 'queso', 'pan', 'mermelada'],
+        secondary: ['leche', 'café', 'té', 'miel', 'nueces', 'almendras'],
+        avoid: ['carne', 'pollo', 'pescado', 'arroz', 'pasta', 'papas', 'cebolla']
+      },
+      'DINNER': {
+        primary: ['pescado', 'pollo', 'verduras', 'ensalada', 'sopa', 'pasta ligera'],
+        secondary: ['queso', 'huevos', 'pan', 'aceite', 'especias', 'hierbas'],
+        avoid: ['cereales', 'mermelada', 'café', 'té', 'galletas', 'bizcochos']
+      }
+    };
+
+    const categories = mealTypeCategories[mealType] || mealTypeCategories['LUNCH'];
+    const selectedIngredients: InventoryIngredient[] = [];
+    const usedNames = new Set<string>();
+
+    // Primero seleccionar ingredientes primarios (3-4)
+    for (const ingredient of inventory) {
+      if (selectedIngredients.length >= 4) break;
+      
+      const name = ingredient.name.toLowerCase();
+      const isPrimary = categories.primary.some(cat => 
+        name.includes(cat) || cat.includes(name) || 
+        name.includes(cat.slice(0, 4)) || cat.includes(name.slice(0, 4))
+      );
+      
+      const isAvoid = categories.avoid.some(cat => 
+        name.includes(cat) || cat.includes(name)
+      );
+
+      if (isPrimary && !isAvoid && !usedNames.has(name)) {
+        selectedIngredients.push(ingredient);
+        usedNames.add(name);
+        console.log(`✅ DEBUG: Ingrediente primario seleccionado: ${ingredient.name}`);
+      }
+    }
+
+    // Si no hay suficientes primarios, agregar secundarios
+    if (selectedIngredients.length < 3) {
+      for (const ingredient of inventory) {
+        if (selectedIngredients.length >= 4) break;
+        
+        const name = ingredient.name.toLowerCase();
+        const isSecondary = categories.secondary.some(cat => 
+          name.includes(cat) || cat.includes(name)
+        );
+        
+        const isAvoid = categories.avoid.some(cat => 
+          name.includes(cat) || cat.includes(name)
+        );
+
+        if (isSecondary && !isAvoid && !usedNames.has(name)) {
+          selectedIngredients.push(ingredient);
+          usedNames.add(name);
+          console.log(`✅ DEBUG: Ingrediente secundario seleccionado: ${ingredient.name}`);
+        }
+      }
+    }
+
+    console.log(`🎯 DEBUG: Preseleccionados ${selectedIngredients.length} ingredientes para ${mealType}:`, 
+      selectedIngredients.map(ing => ing.name));
+
+    return selectedIngredients;
+  };
+
+  // Preseleccionar ingredientes específicos para este tipo de comida
+  const preselectedIngredients = preselectIngredientsForMealType(inventory, mealType);
+  
+  // Analizar recetas existentes para evitar repeticiones
+  let existingRecipesContext = "";
+  if (userId) {
+    try {
+      console.log("🔍 DEBUG: Analizando recetas existentes para evitar repeticiones...");
+      
+      // Importar prisma dinámicamente para evitar problemas de importación
+      const { default: prisma } = await import("@/lib/prisma");
+      
+      // Buscar 3 recetas aleatorias del mismo tipo de comida
+      const existingRecipes = await prisma.recipe.findMany({
+        where: {
+          userId: userId,
+        },
+        take: 3,
+        orderBy: {
+          createdAt: 'desc'
+        }
+      });
+
+      console.log(`🔍 DEBUG: Encontradas ${existingRecipes.length} recetas existentes`);
+
+      if (existingRecipes.length > 0) {
+        const analyzedIngredients = new Set<string>();
+        const analyzedTitles = new Set<string>();
+        const analyzedMethods = new Set<string>();
+
+        for (const recipe of existingRecipes) {
+          try {
+            // Analizar ingredientes
+            if (recipe.ingredients) {
+              const ingredients = JSON.parse(recipe.ingredients);
+              ingredients.forEach((ing: { name: string }) => {
+                analyzedIngredients.add(ing.name.toLowerCase());
+              });
+            }
+
+            // Analizar títulos
+            analyzedTitles.add(recipe.title.toLowerCase());
+
+            // Analizar métodos de cocción (extraer de instrucciones)
+            const instructions = recipe.instructions.toLowerCase();
+            if (instructions.includes('hornea') || instructions.includes('horno')) {
+              analyzedMethods.add('horneado');
+            }
+            if (instructions.includes('sartén') || instructions.includes('plancha')) {
+              analyzedMethods.add('plancha');
+            }
+            if (instructions.includes('hervido') || instructions.includes('hervir')) {
+              analyzedMethods.add('hervido');
+            }
+            if (instructions.includes('salteado') || instructions.includes('saltear')) {
+              analyzedMethods.add('salteado');
+            }
+
+            console.log(`🔍 DEBUG: Receta analizada: "${recipe.title}"`);
+          } catch (error) {
+            console.warn("⚠️ DEBUG: Error analizando receta:", error);
+          }
+        }
+
+        // Crear contexto para la IA
+        existingRecipesContext = `
+
+CONTEXTO DE RECETAS EXISTENTES:
+- Ingredientes ya usados recientemente: ${Array.from(analyzedIngredients).join(", ")}
+- Títulos ya usados: ${Array.from(analyzedTitles).join(", ")}
+- Métodos de cocción ya usados: ${Array.from(analyzedMethods).join(", ")}
+
+INSTRUCCIONES PARA EVITAR REPETICIÓN:
+- NO uses los ingredientes ya listados arriba
+- NO uses títulos similares a los ya listados
+- Varía los métodos de cocción (evita: ${Array.from(analyzedMethods).join(", ")})
+- Crea una receta completamente diferente y única`;
+
+        console.log("🔍 DEBUG: Contexto de recetas existentes creado:", existingRecipesContext);
+      }
+    } catch (error) {
+      console.error("❌ DEBUG: Error analizando recetas existentes:", error);
+    }
+  }
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
@@ -433,8 +600,8 @@ export async function generateRecipeWithInventory(
         `Intento ${attempt}/${maxRetries} para generar receta de ${mealType}`
       );
 
-      // Formatear inventario con cantidades
-      const inventoryText = inventory
+      // Formatear SOLO los ingredientes preseleccionados
+      const preselectedInventoryText = preselectedIngredients
         .map((item) => {
           const unitAbbr = FOOD_UNIT_ABBREVIATIONS[item.unit];
           return `${item.name}: ${item.quantity} ${unitAbbr}`;
@@ -443,9 +610,11 @@ export async function generateRecipeWithInventory(
 
       const mealTypeLabel = MEAL_TYPE_LABELS[mealType];
 
-      let prompt = `Necesito que me crees una receta para ${mealTypeLabel.toLowerCase()} utilizando estos ingredientes disponibles en mi inventario:
+      let prompt = `Necesito que me crees una receta para ${mealTypeLabel.toLowerCase()} utilizando ÚNICAMENTE estos ingredientes preseleccionados:
 
-${inventoryText}
+${preselectedInventoryText}
+
+IMPORTANTE: Solo puedes usar los ingredientes listados arriba. NO uses otros ingredientes del inventario.
 
 ${customTitle ? `TÍTULO SUGERIDO: ${customTitle}` : ""}
 ${customDescription ? `DESCRIPCIÓN SUGERIDA: ${customDescription}` : ""}
@@ -453,7 +622,38 @@ ${
   preferredIngredients && preferredIngredients.length > 0
     ? `INGREDIENTES PREFERIDOS A INCLUIR: ${preferredIngredients.join(", ")}`
     : ""
-}`;
+}
+
+${existingRecipesContext}
+
+REGLAS ESPECÍFICAS PARA ${mealTypeLabel.toUpperCase()}:
+${mealType === 'BREAKFAST' ? `
+- INGREDIENTES TÍPICOS: huevos, pan, lácteos, cereales, frutas
+- ESTILO: Simple, rápido, energético
+- EJEMPLOS: "Huevos Revueltos", "Tostadas con Mermelada", "Café con Leche"
+` : mealType === 'LUNCH' ? `
+- INGREDIENTES TÍPICOS: carnes, verduras, arroz, pasta, ensaladas
+- ESTILO: Sustancioso, balanceado, nutritivo
+- EJEMPLOS: "Milanesa con Puré", "Pollo Asado", "Ensalada Mixta"
+` : mealType === 'SNACK' ? `
+- INGREDIENTES TÍPICOS: frutas, yogur, galletas, té, café
+- ESTILO: Ligero, refrescante, energético
+- EJEMPLOS: "Yogur con Frutas", "Té con Galletas", "Mate con Bizcochitos"
+` : `
+- INGREDIENTES TÍPICOS: pescado, verduras, sopas, pastas ligeras
+- ESTILO: Ligero, digestivo, relajante
+- EJEMPLOS: "Sopa de Verduras", "Pescado al Horno", "Ensalada César"
+`}
+
+REGLAS GENERALES:
+- Título simple y directo (máximo 4 palabras)
+- Solo 3-4 ingredientes principales
+- Tiempo de cocción: 15-25 minutos
+- Dificultad: Fácil
+- Instrucciones claras en 4 pasos máximo
+- Usa SOLO los ingredientes preseleccionados arriba
+
+IMPORTANTE: Crea una receta única y diferente a las recetas existentes mencionadas arriba.`;
 
       // Si hay imagen, agregar análisis de imagen al prompt
       if (image) {

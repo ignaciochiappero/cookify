@@ -196,211 +196,187 @@ export default function MealCalendar({ recipes }: MealCalendarProps) {
 
     setIsGeneratingRecipes(true);
     try {
-      console.log("Iniciando generación masiva para slots:", selectedSlots);
+      console.log("🚀 Iniciando generación masiva inteligente para slots:", selectedSlots);
 
-      // Agrupar slots por tipo de comida para generar recetas más eficientemente
+      // PASO 1: Agrupar slots por tipo de comida para crear variedad
       const slotsByMealType = selectedSlots.reduce((acc, slot) => {
         if (!acc[slot.mealType]) {
           acc[slot.mealType] = [];
         }
         acc[slot.mealType].push(slot);
         return acc;
-      }, {} as Record<MealType, Array<{ date: Date; mealType: MealType }>>);
+      }, {} as Record<string, typeof selectedSlots>);
 
-      console.log("Slots agrupados por tipo de comida:", slotsByMealType);
+      console.log("📊 Slots agrupados por tipo de comida:", slotsByMealType);
 
-      // Generar recetas para cada tipo de comida
+      // PASO 2: Crear recetas de forma aislada (sin ver las anteriores)
+      const generatedRecipes: Array<{
+        slot: typeof selectedSlots[0];
+        recipe: {
+          id: string;
+          title: string;
+          description?: string;
+        };
+        calendarData: {
+          date: string;
+          mealType: string;
+          recipeId: string;
+          notes: string;
+        };
+      }> = [];
+
+      // Procesar cada tipo de comida por separado
       for (const [mealType, slots] of Object.entries(slotsByMealType)) {
-        try {
-          console.log(
-            `Generando receta para ${mealType} con ${slots.length} slots`
-          );
+        console.log(`🍽️ Procesando ${slots.length} slots para ${mealType}...`);
 
-          console.log(`🔄 Iniciando generación de receta para ${mealType}...`);
+        // Crear recetas en paralelo para este tipo de comida
+        const recipePromises = slots.map(async (slot, index) => {
+          try {
+            console.log(`🔄 Generando receta ${index + 1}/${slots.length} para ${slot.date.toDateString()} - ${slot.mealType}...`);
 
-          const response = await fetch("/api/recipes/generate-from-inventory", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              mealType: mealType as MealType,
-              servings: 4,
-              suggestIngredients: true,
-            }),
-            // Timeout más largo para generación de recetas (5 minutos)
-            signal: AbortSignal.timeout(300000),
-          });
-
-          console.log(`📡 Respuesta recibida para ${mealType}:`, {
-            status: response.status,
-            ok: response.ok,
-            statusText: response.statusText,
-          });
-
-          console.log(
-            `Respuesta para ${mealType}:`,
-            response.status,
-            response.ok
-          );
-
-          if (response.ok) {
-            const responseData = await response.json();
-            console.log(
-              `✅ Datos de respuesta para ${mealType}:`,
-              responseData
-            );
-
-            const recipe = responseData.recipe;
-            if (!recipe || !recipe.id) {
-              console.error(
-                `❌ No se pudo obtener la receta para ${mealType}:`,
-                responseData
-              );
-              continue;
-            }
-
-            console.log(`🎯 Receta obtenida para ${mealType}:`, {
-              id: recipe.id,
-              title: recipe.title,
-              description: recipe.description?.substring(0, 100) + "...",
-              instructions: recipe.instructions?.substring(0, 100) + "...",
+            // Contexto de fecha específico
+            const dateContext = slot.date.toLocaleDateString('es-ES', {
+              weekday: 'long',
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric'
             });
 
-            // Crear o actualizar entradas en el calendario para cada slot de este tipo de comida
-            for (const slot of slots) {
-              console.log(
-                `Procesando entrada en calendario para ${slot.date} - ${slot.mealType}`
-              );
+            // Generar receta de forma aislada (sin contexto de otras recetas)
+            const response = await fetch("/api/recipes/generate-from-inventory", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                mealType: slot.mealType,
+                servings: 4,
+                suggestIngredients: true,
+                customTitle: undefined,
+                customDescription: `Receta para ${dateContext}`,
+                preferredIngredients: [], // Permitir variedad total
+                // NO pasar usedIngredients ni usedTitles para máxima variedad
+              }),
+              signal: AbortSignal.timeout(300000),
+            });
 
-              // Primero intentar crear una nueva entrada
-              const calendarResponse = await fetch("/api/meal-calendar", {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                  date: slot.date.toISOString(),
-                  mealType: slot.mealType,
-                  recipeId: recipe.id,
-                  notes: `Generado automáticamente por el Planificador Inteligente`,
-                }),
+            if (response.ok) {
+              const responseData = await response.json();
+              const recipe = responseData.recipe;
+
+              if (recipe && recipe.id) {
+                console.log(`✅ Receta ${index + 1} generada para ${slot.mealType}:`, recipe.title);
+
+                return {
+                  slot,
+                  recipe,
+                  calendarData: {
+                    date: slot.date.toISOString(),
+                    mealType: slot.mealType,
+                    recipeId: recipe.id,
+                    notes: `Receta generada para ${dateContext}`,
+                  }
+                };
+              } else {
+                console.error(`❌ No se pudo obtener receta para ${slot.date.toDateString()} - ${slot.mealType}`);
+                return null;
+              }
+            } else {
+              const errorText = await response.text();
+              console.error(`❌ Error generando receta para ${slot.date.toDateString()} - ${slot.mealType}:`, errorText);
+              return null;
+            }
+          } catch (error) {
+            console.error(`❌ Error generando receta para ${slot.date.toDateString()} - ${slot.mealType}:`, error);
+            return null;
+          }
+        });
+
+        // Esperar a que todas las recetas de este tipo se generen
+        const results = await Promise.all(recipePromises);
+        const validResults = results.filter(result => result !== null);
+        
+        console.log(`✅ Generadas ${validResults.length}/${slots.length} recetas para ${mealType}`);
+        generatedRecipes.push(...validResults);
+      }
+
+      console.log(`🎯 Total de recetas generadas: ${generatedRecipes.length}/${selectedSlots.length}`);
+
+      // PASO 3: Guardar todas las recetas en el calendario de forma masiva
+      if (generatedRecipes.length > 0) {
+        console.log("💾 Guardando recetas en el calendario...");
+        
+        const calendarPromises = generatedRecipes.map(async ({ slot, recipe, calendarData }) => {
+          try {
+            const calendarResponse = await fetch("/api/meal-calendar", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify(calendarData),
+            });
+
+            if (calendarResponse.ok) {
+              console.log(`✅ Calendario actualizado para ${slot.date.toDateString()} - ${slot.mealType}: ${recipe.title}`);
+              return true;
+            } else {
+              // Intentar actualizar si ya existe
+              console.log(`⚠️ Entrada ya existe para ${slot.date.toDateString()} - ${slot.mealType}, intentando actualizar...`);
+              
+              // Buscar entrada existente y actualizarla
+              const slotDateStr = slot.date.toISOString().split("T")[0];
+              const existingMeal = meals.find((meal) => {
+                const mealDate = new Date(meal.date);
+                const mealDateStr = mealDate.toISOString().split("T")[0];
+                return (
+                  mealDateStr === slotDateStr &&
+                  meal.mealType === slot.mealType
+                );
               });
 
-              if (calendarResponse.ok) {
-                console.log(
-                  `Entrada creada exitosamente para ${slot.date} - ${slot.mealType}`
-                );
-              } else {
-                // Si falla porque ya existe, buscar la entrada existente y actualizarla
-                const errorText = await calendarResponse.text();
-                console.log(
-                  `Entrada ya existe para ${slot.date} - ${slot.mealType}, actualizando...`
-                );
-
-                // Buscar la entrada existente en el array de meals con comparación más robusta
-                const slotDateStr = slot.date.toISOString().split("T")[0];
-                const existingMeal = meals.find((meal) => {
-                  const mealDate = new Date(meal.date);
-                  const mealDateStr = mealDate.toISOString().split("T")[0];
-                  return (
-                    mealDateStr === slotDateStr &&
-                    meal.mealType === slot.mealType
-                  );
+              if (existingMeal) {
+                const updateResponse = await fetch(`/api/meal-calendar/${existingMeal.id}`, {
+                  method: "PUT",
+                  headers: {
+                    "Content-Type": "application/json",
+                  },
+                  body: JSON.stringify({
+                    recipeId: recipe.id,
+                    notes: calendarData.notes,
+                  }),
                 });
 
-                if (existingMeal) {
-                  console.log(
-                    `Encontrada entrada existente para actualizar: ${existingMeal.id}`
-                  );
-                  
-                  // Actualizar la entrada existente
-                  const updateResponse = await fetch(
-                    `/api/meal-calendar/${existingMeal.id}`,
-                    {
-                      method: "PUT",
-                      headers: {
-                        "Content-Type": "application/json",
-                      },
-                      body: JSON.stringify({
-                        recipeId: recipe.id,
-                        notes: `Actualizado automáticamente por el Planificador Inteligente`,
-                      }),
-                    }
-                  );
-
-                  if (updateResponse.ok) {
-                    console.log(
-                      `Entrada actualizada exitosamente para ${slot.date} - ${slot.mealType}`
-                    );
-                  } else {
-                    const updateErrorText = await updateResponse.text();
-                    console.error(
-                      `Error actualizando entrada para ${slot.date} - ${slot.mealType}:`,
-                      updateErrorText
-                    );
-                  }
+                if (updateResponse.ok) {
+                  console.log(`✅ Entrada actualizada para ${slot.date.toDateString()} - ${slot.mealType}: ${recipe.title}`);
+                  return true;
                 } else {
-                  console.warn(
-                    `No se encontró entrada existente para actualizar ${slot.date} - ${slot.mealType}. Intentando crear nuevamente...`
-                  );
-                  
-                  // Si no se encuentra la entrada existente, intentar crear una nueva
-                  // pero esta vez con un manejo de errores más robusto
-                  try {
-                    const retryResponse = await fetch("/api/meal-calendar", {
-                      method: "POST",
-                      headers: {
-                        "Content-Type": "application/json",
-                      },
-                      body: JSON.stringify({
-                        date: slot.date.toISOString(),
-                        mealType: slot.mealType,
-                        recipeId: recipe.id,
-                        notes: `Generado automáticamente por el Planificador Inteligente (reintento)`,
-                      }),
-                    });
-
-                    if (retryResponse.ok) {
-                      console.log(
-                        `Entrada creada exitosamente en reintento para ${slot.date} - ${slot.mealType}`
-                      );
-                    } else {
-                      const retryErrorText = await retryResponse.text();
-                      console.error(
-                        `Error en reintento para ${slot.date} - ${slot.mealType}:`,
-                        retryErrorText
-                      );
-                    }
-                  } catch (retryError) {
-                    console.error(
-                      `Error en reintento para ${slot.date} - ${slot.mealType}:`,
-                      retryError
-                    );
-                  }
+                  console.error(`❌ Error actualizando entrada para ${slot.date.toDateString()} - ${slot.mealType}`);
+                  return false;
                 }
+              } else {
+                console.error(`❌ No se encontró entrada existente para actualizar ${slot.date.toDateString()} - ${slot.mealType}`);
+                return false;
               }
             }
-          } else {
-            const errorText = await response.text();
-            console.error(`❌ Error en API de generación para ${mealType}:`, {
-              status: response.status,
-              statusText: response.statusText,
-              error: errorText,
-            });
+          } catch (error) {
+            console.error(`❌ Error guardando en calendario para ${slot.date.toDateString()} - ${slot.mealType}:`, error);
+            return false;
           }
-        } catch (error) {
-          console.error(`Error generando recetas para ${mealType}:`, error);
-        }
+        });
+
+        const calendarResults = await Promise.all(calendarPromises);
+        const successfulSaves = calendarResults.filter(result => result === true).length;
+        
+        console.log(`🎉 Proceso completado: ${successfulSaves}/${generatedRecipes.length} recetas guardadas exitosamente`);
       }
 
       // Recargar las comidas y limpiar selección
-      console.log("Recargando comidas...");
+      console.log("🔄 Recargando comidas...");
       await fetchMeals();
       clearSelectedSlots();
       setIsSmartPlannerOpen(false);
     } catch (error) {
-      console.error("Error en generación masiva:", error);
+      console.error("❌ Error en generación masiva:", error);
     } finally {
       setIsGeneratingRecipes(false);
     }

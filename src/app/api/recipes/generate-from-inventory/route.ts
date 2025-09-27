@@ -89,6 +89,7 @@ export async function POST(request: NextRequest) {
           customTitle,
           customDescription,
           preferredIngredients,
+          userId: authResult.userId!, // Pasar userId para análisis de recetas existentes
         }
       );
 

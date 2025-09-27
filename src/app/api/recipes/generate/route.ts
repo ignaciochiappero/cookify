@@ -5,7 +5,6 @@ import {
   verifyAuthentication,
   createRecipe,
   handleRecipeError,
-  validateRecipeData,
 } from "@/lib/recipeService";
 
 export async function POST(request: NextRequest) {
@@ -45,8 +44,16 @@ export async function POST(request: NextRequest) {
       // Generar receta con IA
       const generatedRecipe = await generateRecipe(ingredients, preferences);
 
+      // Asegurar que cookingTime tenga un valor por defecto
+      const recipeDataWithDefaults = {
+        ...generatedRecipe,
+        cookingTime: generatedRecipe.cookingTime || 30, // 30 minutos por defecto
+        difficulty: generatedRecipe.difficulty || 'Fácil',
+        servings: generatedRecipe.servings || 4,
+      };
+
       // Crear receta usando función centralizada
-      const recipeResult = await createRecipe(generatedRecipe, {
+      const recipeResult = await createRecipe(recipeDataWithDefaults, {
         ingredients,
         userId: authResult.userId!,
       });
@@ -57,7 +64,12 @@ export async function POST(request: NextRequest) {
     const recipeResult = await Promise.race([
       generationPromise,
       timeoutPromise,
-    ]);
+    ]) as {
+      success: boolean;
+      recipe?: unknown;
+      error?: string;
+      details?: string;
+    };
 
     if (!recipeResult.success) {
       return NextResponse.json(

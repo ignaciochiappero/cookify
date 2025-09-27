@@ -3,12 +3,13 @@
 import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Camera, Upload, CheckCircle, Plus, Trash2 } from "lucide-react";
+import { FoodUnit, FoodCategory } from "@/types/inventory";
 
 interface DetectedIngredient {
   name: string;
   quantity: number;
-  unit: string;
-  category: string;
+  unit: FoodUnit;
+  category: FoodCategory;
   confidence: number;
 }
 
@@ -18,8 +19,8 @@ interface Food {
   description: string;
   image: string;
   icon?: string;
-  category: string;
-  unit: string;
+  category: FoodCategory;
+  unit: FoodUnit;
 }
 
 interface ImageAnalyzerProps {
@@ -31,12 +32,12 @@ interface ImageAnalyzerProps {
 interface InventoryItem {
   food?: {
     name: string;
-    category: string;
+    category: FoodCategory;
   };
   name?: string;
   quantity: number;
-  unit: string;
-  category?: string;
+  unit: FoodUnit;
+  category?: FoodCategory;
 }
 
 export default function ImageAnalyzer({
@@ -63,60 +64,18 @@ export default function ImageAnalyzer({
   const [newIngredient, setNewIngredient] = useState<
     Partial<DetectedIngredient>
   >({});
-  const [availableFoods, setAvailableFoods] = useState<Food[]>([]);
+  // Ya no necesitamos availableFoods - se crean automáticamente
   const [isAddingToInventory, setIsAddingToInventory] = useState(false);
   const [ingredientsAdded, setIngredientsAdded] = useState(false);
 
-  // Cargar alimentos disponibles al montar el componente
-  useEffect(() => {
-    fetchAvailableFoods();
-  }, []);
+  // Ya no necesitamos cargar alimentos disponibles - se crean automáticamente
 
-  const fetchAvailableFoods = async () => {
-    try {
-      const response = await fetch("/api/food");
-      const result = await response.json();
-      if (result.success) {
-        setAvailableFoods(result.data || []);
-      }
-    } catch (error) {
-      console.error("Error al cargar alimentos:", error);
-    }
-  };
-
-  const findMatchingFood = (ingredientName: string): Food | null => {
-    const normalizedName = ingredientName.toLowerCase().trim();
-
-    // Buscar coincidencia exacta
-    let match = availableFoods.find(
-      (food) => food.name.toLowerCase() === normalizedName
-    );
-
-    if (match) return match;
-
-    // Buscar coincidencia parcial
-    match = availableFoods.find(
-      (food) =>
-        food.name.toLowerCase().includes(normalizedName) ||
-        normalizedName.includes(food.name.toLowerCase())
-    );
-
-    if (match) return match;
-
-    // Buscar por palabras clave
-    const keywords = normalizedName.split(" ");
-    match = availableFoods.find((food) =>
-      keywords.some(
-        (keyword) =>
-          food.name.toLowerCase().includes(keyword) && keyword.length > 2
-      )
-    );
-
-    return match || null;
-  };
+  // Ya no necesitamos buscar coincidencias - se crean automáticamente
 
   const addIngredientsToInventory = async () => {
     setIsAddingToInventory(true);
+    setError("");
+    
     try {
       if (missingIngredients.length === 0) {
         setError(
@@ -126,45 +85,86 @@ export default function ImageAnalyzer({
         return;
       }
 
-      const promises = missingIngredients.map(async (ingredient) => {
-        const matchingFood = findMatchingFood(ingredient.name);
+      console.log(`🔍 DEBUG: Iniciando agregado masivo de ${missingIngredients.length} ingredientes`);
+      console.log(`🔍 DEBUG: Ingredientes a procesar:`, missingIngredients);
 
-        if (matchingFood) {
-          const response = await fetch("/api/inventory", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              foodId: matchingFood.id,
-              quantity: ingredient.quantity,
-              unit: ingredient.unit,
-              notes: `Agregado desde análisis de imagen - ${ingredient.name}`,
-            }),
-          });
+      // Preparar datos para la transacción masiva - CREAR AUTOMÁTICAMENTE
+      const itemsToAdd = [];
 
-          if (!response.ok) {
-            throw new Error(`Error al agregar ${ingredient.name}`);
-          }
+      for (const ingredient of missingIngredients) {
+        console.log(`🔍 DEBUG: Preparando ingrediente para creación automática: "${ingredient.name}"`);
+        
+        // Siempre agregar el ingrediente para que se cree automáticamente
+        itemsToAdd.push({
+          foodName: ingredient.name,
+          category: ingredient.category,
+          quantity: ingredient.quantity,
+          unit: ingredient.unit,
+          notes: `Agregado desde análisis de imagen - ${ingredient.name}`,
+        });
+        
+        console.log(`✅ DEBUG: Ingrediente preparado para creación automática:`, {
+          foodName: ingredient.name,
+          category: ingredient.category,
+          quantity: ingredient.quantity,
+          unit: ingredient.unit
+        });
+      }
 
-          return response.json();
-        } else {
-          console.warn(`No se encontró coincidencia para: ${ingredient.name}`);
-          return null;
-        }
+      console.log(`🔍 DEBUG: Items a crear automáticamente:`, itemsToAdd);
+
+      if (itemsToAdd.length === 0) {
+        setError(`No hay ingredientes para agregar al inventario`);
+        setIsAddingToInventory(false);
+        return;
+      }
+
+      console.log(`🚀 DEBUG: Enviando ${itemsToAdd.length} ingredientes al endpoint /api/inventory/bulk`);
+
+      // Usar el endpoint de transacción masiva
+      const response = await fetch("/api/inventory/bulk", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ items: itemsToAdd }),
       });
 
-      await Promise.all(promises);
+      console.log(`🔍 DEBUG: Respuesta del servidor:`, {
+        status: response.status,
+        ok: response.ok,
+        statusText: response.statusText
+      });
 
-      // Notificar al componente padre que se agregaron ingredientes
-      onIngredientsDetected(missingIngredients);
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: "Error desconocido" }));
+        console.error(`❌ DEBUG: Error en respuesta:`, errorData);
+        throw new Error(`Error en transacción masiva: ${errorData.error || response.statusText}`);
+      }
 
-      // Marcar que los ingredientes fueron agregados
-      setIngredientsAdded(true);
+      const result = await response.json();
+      console.log(`🔍 DEBUG: Resultado de la transacción:`, result);
+      
+      if (result.success) {
+        console.log(`✅ DEBUG: Transacción exitosa: ${result.data.successful} ingredientes agregados`);
+        
+        // Notificar al componente padre que se agregaron ingredientes
+        onIngredientsDetected(missingIngredients);
 
-      // Limpiar la lista de ingredientes faltantes
-      setMissingIngredients([]);
+        // Marcar que los ingredientes fueron agregados
+        setIngredientsAdded(true);
+
+        // Limpiar la lista de ingredientes faltantes
+        setMissingIngredients([]);
+
+        if (result.data.errors > 0) {
+          setError(`Se agregaron ${result.data.successful} ingredientes exitosamente, pero hubo ${result.data.errors} errores.`);
+        }
+      } else {
+        console.error(`❌ DEBUG: Error en la transacción:`, result);
+        throw new Error(`Error en la transacción: ${result.error || "Error desconocido"}`);
+      }
     } catch (error) {
-      console.error("Error al agregar ingredientes al inventario:", error);
-      setError("Error al agregar algunos ingredientes al inventario");
+      console.error("❌ DEBUG: Error general al agregar ingredientes al inventario:", error);
+      setError(`Error al agregar ingredientes al inventario: ${error instanceof Error ? error.message : "Error desconocido"}`);
     } finally {
       setIsAddingToInventory(false);
     }
@@ -260,8 +260,8 @@ export default function ImageAnalyzer({
       ).map((item) => ({
         name: item.food?.name || item.name || "Ingrediente",
         quantity: item.quantity || 1,
-        unit: item.unit || "PIECE",
-        category: item.food?.category || item.category || "OTHER",
+        unit: item.unit || FoodUnit.PIECE,
+        category: item.food?.category || item.category || FoodCategory.OTHER,
       }));
 
       // Convertir missingIngredients al formato correcto
@@ -358,8 +358,8 @@ export default function ImageAnalyzer({
       const ingredient: DetectedIngredient = {
         name: newIngredient.name,
         quantity: newIngredient.quantity,
-        unit: newIngredient.unit,
-        category: newIngredient.category,
+        unit: newIngredient.unit as FoodUnit,
+        category: newIngredient.category as FoodCategory,
         confidence: 1.0,
       };
       setMissingIngredients([...missingIngredients, ingredient]);
@@ -558,18 +558,20 @@ export default function ImageAnalyzer({
                       <select
                         value={ingredient.unit}
                         onChange={(e) =>
-                          editDetectedIngredient(index, "unit", e.target.value)
+                          editDetectedIngredient(index, "unit", e.target.value as FoodUnit)
                         }
                         className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
                       >
-                        <option value="PIECE">Pieza</option>
-                        <option value="GRAM">Gramo</option>
-                        <option value="KILOGRAM">Kilogramo</option>
-                        <option value="LITER">Litro</option>
-                        <option value="MILLILITER">Mililitro</option>
-                        <option value="CUP">Taza</option>
-                        <option value="TABLESPOON">Cucharada</option>
-                        <option value="TEASPOON">Cucharadita</option>
+                        <option value={FoodUnit.PIECE}>Pieza</option>
+                        <option value={FoodUnit.GRAM}>Gramo</option>
+                        <option value={FoodUnit.KILOGRAM}>Kilogramo</option>
+                        <option value={FoodUnit.LITER}>Litro</option>
+                        <option value={FoodUnit.MILLILITER}>Mililitro</option>
+                        <option value={FoodUnit.CUP}>Taza</option>
+                        <option value={FoodUnit.TABLESPOON}>Cucharada</option>
+                        <option value={FoodUnit.TEASPOON}>Cucharadita</option>
+                        <option value={FoodUnit.POUND}>Libra</option>
+                        <option value={FoodUnit.OUNCE}>Onza</option>
                       </select>
                     </div>
                     <div className="flex items-end space-x-2">
@@ -684,18 +686,20 @@ export default function ImageAnalyzer({
                       <select
                         value={ingredient.unit}
                         onChange={(e) =>
-                          editIngredient(index, "unit", e.target.value)
+                          editIngredient(index, "unit", e.target.value as FoodUnit)
                         }
                         className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
                       >
-                        <option value="PIECE">Pieza</option>
-                        <option value="GRAM">Gramo</option>
-                        <option value="KILOGRAM">Kilogramo</option>
-                        <option value="LITER">Litro</option>
-                        <option value="MILLILITER">Mililitro</option>
-                        <option value="CUP">Taza</option>
-                        <option value="TABLESPOON">Cucharada</option>
-                        <option value="TEASPOON">Cucharadita</option>
+                        <option value={FoodUnit.PIECE}>Pieza</option>
+                        <option value={FoodUnit.GRAM}>Gramo</option>
+                        <option value={FoodUnit.KILOGRAM}>Kilogramo</option>
+                        <option value={FoodUnit.LITER}>Litro</option>
+                        <option value={FoodUnit.MILLILITER}>Mililitro</option>
+                        <option value={FoodUnit.CUP}>Taza</option>
+                        <option value={FoodUnit.TABLESPOON}>Cucharada</option>
+                        <option value={FoodUnit.TEASPOON}>Cucharadita</option>
+                        <option value={FoodUnit.POUND}>Libra</option>
+                        <option value={FoodUnit.OUNCE}>Onza</option>
                       </select>
                     </div>
                     <div>
@@ -705,18 +709,18 @@ export default function ImageAnalyzer({
                       <select
                         value={ingredient.category}
                         onChange={(e) =>
-                          editIngredient(index, "category", e.target.value)
+                          editIngredient(index, "category", e.target.value as FoodCategory)
                         }
                         className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
                       >
-                        <option value="VEGETABLE">Verdura</option>
-                        <option value="FRUIT">Fruta</option>
-                        <option value="MEAT">Carne</option>
-                        <option value="DAIRY">Lácteo</option>
-                        <option value="GRAIN">Cereal</option>
-                        <option value="LIQUID">Líquido</option>
-                        <option value="SPICE">Especia</option>
-                        <option value="OTHER">Otro</option>
+                        <option value={FoodCategory.VEGETABLE}>Verdura</option>
+                        <option value={FoodCategory.FRUIT}>Fruta</option>
+                        <option value={FoodCategory.MEAT}>Carne</option>
+                        <option value={FoodCategory.DAIRY}>Lácteo</option>
+                        <option value={FoodCategory.GRAIN}>Cereal</option>
+                        <option value={FoodCategory.LIQUID}>Líquido</option>
+                        <option value={FoodCategory.SPICE}>Especia</option>
+                        <option value={FoodCategory.OTHER}>Otro</option>
                       </select>
                     </div>
                     <div className="flex items-end">
@@ -779,19 +783,21 @@ export default function ImageAnalyzer({
                 <select
                   value={newIngredient.unit || ""}
                   onChange={(e) =>
-                    setNewIngredient({ ...newIngredient, unit: e.target.value })
+                    setNewIngredient({ ...newIngredient, unit: e.target.value as FoodUnit })
                   }
                   className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
                 >
                   <option value="">Seleccionar</option>
-                  <option value="PIECE">Pieza</option>
-                  <option value="GRAM">Gramo</option>
-                  <option value="KILOGRAM">Kilogramo</option>
-                  <option value="LITER">Litro</option>
-                  <option value="MILLILITER">Mililitro</option>
-                  <option value="CUP">Taza</option>
-                  <option value="TABLESPOON">Cucharada</option>
-                  <option value="TEASPOON">Cucharadita</option>
+                  <option value={FoodUnit.PIECE}>Pieza</option>
+                  <option value={FoodUnit.GRAM}>Gramo</option>
+                  <option value={FoodUnit.KILOGRAM}>Kilogramo</option>
+                  <option value={FoodUnit.LITER}>Litro</option>
+                  <option value={FoodUnit.MILLILITER}>Mililitro</option>
+                  <option value={FoodUnit.CUP}>Taza</option>
+                  <option value={FoodUnit.TABLESPOON}>Cucharada</option>
+                  <option value={FoodUnit.TEASPOON}>Cucharadita</option>
+                  <option value={FoodUnit.POUND}>Libra</option>
+                  <option value={FoodUnit.OUNCE}>Onza</option>
                 </select>
               </div>
               <div>
@@ -803,20 +809,20 @@ export default function ImageAnalyzer({
                   onChange={(e) =>
                     setNewIngredient({
                       ...newIngredient,
-                      category: e.target.value,
+                      category: e.target.value as FoodCategory,
                     })
                   }
                   className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
                 >
                   <option value="">Seleccionar</option>
-                  <option value="VEGETABLE">Verdura</option>
-                  <option value="FRUIT">Fruta</option>
-                  <option value="MEAT">Carne</option>
-                  <option value="DAIRY">Lácteo</option>
-                  <option value="GRAIN">Cereal</option>
-                  <option value="LIQUID">Líquido</option>
-                  <option value="SPICE">Especia</option>
-                  <option value="OTHER">Otro</option>
+                  <option value={FoodCategory.VEGETABLE}>Verdura</option>
+                  <option value={FoodCategory.FRUIT}>Fruta</option>
+                  <option value={FoodCategory.MEAT}>Carne</option>
+                  <option value={FoodCategory.DAIRY}>Lácteo</option>
+                  <option value={FoodCategory.GRAIN}>Cereal</option>
+                  <option value={FoodCategory.LIQUID}>Líquido</option>
+                  <option value={FoodCategory.SPICE}>Especia</option>
+                  <option value={FoodCategory.OTHER}>Otro</option>
                 </select>
               </div>
               <div className="flex items-end">

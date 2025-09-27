@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { generateRecipeWithInventory } from "@/lib/gemini";
+// InventoryIngredient está definido en gemini.ts
 import {
   verifyAuthentication,
   createRecipe,
@@ -65,7 +66,8 @@ export async function POST(request: NextRequest) {
     const generationPromise = (async () => {
       // Generar receta usando IA con inventario
       const recipeData = await generateRecipeWithInventory(
-        ingredientsWithQuantities,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        ingredientsWithQuantities as any,
         mealType,
         servings,
         suggestIngredients,
@@ -76,8 +78,16 @@ export async function POST(request: NextRequest) {
         }
       );
 
+      // Asegurar que cookingTime tenga un valor por defecto
+      const recipeDataWithDefaults = {
+        ...recipeData,
+        cookingTime: recipeData.cookingTime || 30, // 30 minutos por defecto
+        difficulty: recipeData.difficulty || 'Fácil',
+        servings: recipeData.servings || servings || 4,
+      };
+
       // Crear receta usando función centralizada
-      const recipeResult = await createRecipe(recipeData, {
+      const recipeResult = await createRecipe(recipeDataWithDefaults, {
         ingredients: ingredientsWithQuantities,
         userId: authResult.userId!,
         customTitle,
@@ -91,7 +101,17 @@ export async function POST(request: NextRequest) {
     const { recipeResult, recipeData } = await Promise.race([
       generationPromise,
       timeoutPromise,
-    ]);
+    ]) as {
+      recipeResult: {
+        success: boolean;
+        recipe?: unknown;
+        error?: string;
+        details?: string;
+      };
+      recipeData: {
+        suggestedIngredients?: string[];
+      };
+    };
 
     if (!recipeResult.success) {
       return NextResponse.json(

@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
     const {
       title,
       description,
-      mealType,
+      // mealType, // No se usa en esta función
       servings,
       difficulty,
       cookingTime,
@@ -61,15 +61,24 @@ export async function POST(request: NextRequest) {
 
     const generationPromise = (async () => {
       // Generar receta usando IA con ingredientes específicos
-      const recipeData = await generateRecipe(recipeIngredients, {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const recipeData = await generateRecipe(recipeIngredients as any, {
         cookingTime: cookingTime || 30,
         difficulty: difficulty || "Fácil",
         servings: servings || 4,
         dietaryRestrictions: preferences?.dietaryRestrictions || [],
       });
 
+      // Asegurar que cookingTime tenga un valor por defecto
+      const recipeDataWithDefaults = {
+        ...recipeData,
+        cookingTime: recipeData.cookingTime || 30, // 30 minutos por defecto
+        difficulty: recipeData.difficulty || 'Fácil',
+        servings: recipeData.servings || servings || 4,
+      };
+
       // Crear receta usando función centralizada
-      const recipeResult = await createRecipe(recipeData, {
+      const recipeResult = await createRecipe(recipeDataWithDefaults, {
         ingredients: specificIngredients,
         userId: authResult.userId!,
         customTitle: title,
@@ -85,7 +94,12 @@ export async function POST(request: NextRequest) {
     const recipeResult = await Promise.race([
       generationPromise,
       timeoutPromise,
-    ]);
+    ]) as {
+      success: boolean;
+      recipe?: unknown;
+      error?: string;
+      details?: string;
+    };
 
     if (!recipeResult.success) {
       return NextResponse.json(
@@ -99,7 +113,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Guardar en cache para futuras consultas
-    setCachedRecipe(specificIngredients, recipeResult.recipe);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    setCachedRecipe(specificIngredients, recipeResult.recipe as any);
 
     return NextResponse.json({
       success: true,

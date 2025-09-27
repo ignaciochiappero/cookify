@@ -1,19 +1,16 @@
-import { generateText, generateObject } from "ai";
+import { generateText, type ModelMessage } from "ai";
 import { RecipeIngredient, GeneratedRecipe } from "@/types/recipe";
 import { FOOD_UNIT_ABBREVIATIONS } from "@/types/inventory";
 import { FoodUnit as PrismaFoodUnit } from "../generated/prisma";
 import { MealType, MEAL_TYPE_LABELS } from "@/types/meal-calendar";
 import {
   model,
-  RecipeSchema,
-  AnalysisSchema,
-  MealPlanSchema,
 } from "./ai-provider";
 
 /**
  * Función para parsear respuestas del modelo local que pueden venir en formato JSON o Markdown
  */
-function parseModelResponse(text: string): any {
+function parseModelResponse(text: string): unknown {
   try {
     // Primero intentar parsear como JSON
     let cleanText = text
@@ -43,7 +40,7 @@ function parseModelResponse(text: string): any {
 /**
  * Función para parsear respuestas en formato Markdown del modelo local
  */
-function parseMarkdownResponse(text: string): any {
+function parseMarkdownResponse(text: string): unknown {
   try {
     console.log(
       "Parseando respuesta Markdown:",
@@ -219,7 +216,7 @@ function extractServings(text: string): number {
 }
 
 // Función para convertir imagen a base64 (solo para cliente)
-function fileToGenerativePart(file: File): Promise<any> {
+function fileToGenerativePart(file: File): Promise<unknown> {
   return new Promise((resolve, reject) => {
     if (typeof window === "undefined") {
       reject(new Error("FileReader no está disponible en el servidor"));
@@ -242,7 +239,7 @@ function fileToGenerativePart(file: File): Promise<any> {
 }
 
 // Función para convertir buffer a base64 (para servidor)
-function bufferToGenerativePart(buffer: Buffer, mimeType: string): any {
+function bufferToGenerativePart(buffer: Buffer, mimeType: string): unknown {
   return {
     type: "image",
     image: buffer.toString("base64"),
@@ -315,7 +312,7 @@ Requisitos:
     prompt += `\n\nIMPORTANTE: El campo "instructions" debe ser un STRING, no un array. Separa los pasos con \\n\\n para mejor formato.`;
 
     // Preparar el contenido para el modelo
-    const content: (string | any)[] = [prompt];
+    const content: (string | unknown)[] = [prompt];
 
     // Si hay imagen, agregarla al contenido
     if (preferences?.image) {
@@ -336,19 +333,26 @@ Requisitos:
     // Parsear la respuesta del modelo local
     const recipeData = parseModelResponse(result.text);
 
+    // Verificar que recipeData es un objeto
+    if (typeof recipeData !== 'object' || recipeData === null) {
+      throw new Error('Datos de receta inválidos');
+    }
+
+    const data = recipeData as Record<string, unknown>;
+
     // Convertir instrucciones de array a string si es necesario
-    let instructions = recipeData.instructions;
+    let instructions = data.instructions;
     if (Array.isArray(instructions)) {
       instructions = instructions.join("\n\n");
     }
 
     return {
-      title: recipeData.title,
-      description: recipeData.description,
-      instructions: instructions,
-      cookingTime: recipeData.cookingTime,
-      difficulty: recipeData.difficulty,
-      servings: recipeData.servings,
+      title: data.title as string,
+      description: data.description as string,
+      instructions: instructions as string,
+      cookingTime: data.cookingTime as number,
+      difficulty: data.difficulty as string,
+      servings: data.servings as number,
     };
   } catch (error) {
     console.error("Error generando receta con LM Studio:", error);
@@ -465,7 +469,7 @@ ${
 - El campo "suggestedIngredients" debe ser un array de strings con ingredientes adicionales sugeridos.`;
 
       // Preparar el contenido para el modelo
-      const content: (string | any)[] = [prompt];
+      const content: (string | unknown)[] = [prompt];
 
       // Si hay imagen, agregarla al contenido
       if (image) {
@@ -486,8 +490,15 @@ ${
       // Parsear la respuesta del modelo local
       const recipeData = parseModelResponse(result.text);
 
+      // Verificar que recipeData es un objeto
+      if (typeof recipeData !== 'object' || recipeData === null) {
+        throw new Error('Datos de receta inválidos');
+      }
+
+      const data = recipeData as Record<string, unknown>;
+
       // Convertir instrucciones de array a string si es necesario
-      let instructions = recipeData.instructions;
+      let instructions = data.instructions;
       if (Array.isArray(instructions)) {
         instructions = instructions.join("\n\n");
       }
@@ -496,13 +507,13 @@ ${
         `✅ Receta generada exitosamente en intento ${attempt} para ${mealType}`
       );
       return {
-        title: recipeData.title,
-        description: recipeData.description,
-        instructions: instructions,
-        cookingTime: recipeData.cookingTime || 30, // Valor por defecto si es undefined
-        difficulty: recipeData.difficulty || "Fácil", // Valor por defecto si es undefined
-        servings: recipeData.servings || 4, // Valor por defecto si es undefined
-        suggestedIngredients: recipeData.suggestedIngredients || [],
+        title: data.title as string,
+        description: data.description as string,
+        instructions: instructions as string,
+        cookingTime: (data.cookingTime as number) || 30, // Valor por defecto si es undefined
+        difficulty: (data.difficulty as string) || "Fácil", // Valor por defecto si es undefined
+        servings: (data.servings as number) || 4, // Valor por defecto si es undefined
+        suggestedIngredients: (data.suggestedIngredients as string[]) || [],
       };
     } catch (error) {
       console.error(
@@ -674,7 +685,7 @@ EJEMPLO DE ANÁLISIS CORRECTO:
 
   try {
     // Preparar el contenido para el modelo
-    let content: any;
+    let content: unknown;
     
     if (image) {
       try {
@@ -709,8 +720,10 @@ EJEMPLO DE ANÁLISIS CORRECTO:
         console.log("Contenido con imagen preparado:", {
           hasImage: true,
           promptLength: prompt.length,
-          imageType: imagePart.type,
-          imageMimeType: imagePart.mimeType
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          imageType: (imagePart as any).type,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          imageMimeType: (imagePart as any).mimeType
         });
       } catch (error) {
         console.error("Error procesando imagen:", error);
@@ -737,12 +750,12 @@ EJEMPLO DE ANÁLISIS CORRECTO:
       if (Array.isArray(content) && content[0]?.role) {
         result = await generateText({
           model: model,
-          messages: content,
+          messages: content as ModelMessage[],
         });
       } else {
         result = await generateText({
           model: model,
-          prompt: content,
+          prompt: content as string,
         });
       }
       console.log("Llamada al modelo exitosa");
@@ -757,9 +770,12 @@ EJEMPLO DE ANÁLISIS CORRECTO:
     console.log("Respuesta de LM Studio:", analysisData);
 
     return {
-      detectedIngredients: analysisData.detectedIngredients || [],
-      missingIngredients: analysisData.missingIngredients || [],
-      suggestions: analysisData.suggestions || [],
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      detectedIngredients: (analysisData as any).detectedIngredients || [],
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      missingIngredients: (analysisData as any).missingIngredients || [],
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      suggestions: (analysisData as any).suggestions || [],
     };
   } catch (error) {
     console.error("Error analizando imagen:", error);
@@ -826,7 +842,14 @@ IMPORTANTE: Responde solo con el JSON, sin texto adicional antes o después.`;
 
     console.log("Respuesta de LM Studio para plan de comidas:", planData);
 
-    return planData.mealPlan || [];
+    // Verificar que planData es un objeto
+    if (typeof planData !== 'object' || planData === null) {
+      throw new Error('Datos de plan de comidas inválidos');
+    }
+
+    const data = planData as Record<string, unknown>;
+
+    return (data.mealPlan as MealPlan[]) || [];
   } catch (error) {
     console.error("Error generando plan de comidas:", error);
     if (error instanceof SyntaxError) {

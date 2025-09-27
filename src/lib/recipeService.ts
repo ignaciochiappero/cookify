@@ -15,7 +15,7 @@ export interface RecipeData {
 }
 
 export interface RecipeCreationOptions {
-  ingredients: any[];
+  ingredients: unknown[];
   userId: string;
   customTitle?: string;
   customDescription?: string;
@@ -26,7 +26,7 @@ export interface RecipeCreationOptions {
 
 export interface RecipeResponse {
   success: boolean;
-  recipe?: any;
+  recipe?: unknown;
   suggestedIngredients?: string[];
   fromCache?: boolean;
   message?: string;
@@ -160,20 +160,23 @@ export function handleRecipeError(
  * Función para formatear ingredientes del inventario
  * Unifica la lógica de formateo de ingredientes
  */
-export function formatInventoryIngredients(inventory: any[]): any[] {
-  return inventory.map((item) => ({
-    name: item.food?.name || item.name,
-    quantity: item.quantity || 1,
-    unit: item.unit || "PIECE",
-    category: item.food?.category || item.category || "OTHER",
-  }));
+export function formatInventoryIngredients(inventory: unknown[]): unknown[] {
+  return inventory.map((item) => {
+    const itemData = item as Record<string, unknown>;
+    return {
+      name: (itemData.food as Record<string, unknown>)?.name || itemData.name,
+      quantity: itemData.quantity || 1,
+      unit: itemData.unit || "PIECE",
+      category: (itemData.food as Record<string, unknown>)?.category || itemData.category || "OTHER",
+    };
+  });
 }
 
 /**
  * Función para formatear ingredientes específicos
  * Convierte array de strings a formato de ingredientes
  */
-export function formatSpecificIngredients(ingredients: string[]): any[] {
+export function formatSpecificIngredients(ingredients: string[]): unknown[] {
   return ingredients.map((ingredient) => ({
     name: ingredient,
     quantity: 1,
@@ -184,19 +187,21 @@ export function formatSpecificIngredients(ingredients: string[]): any[] {
 /**
  * Función para validar datos de receta
  */
-export function validateRecipeData(data: any): {
+export function validateRecipeData(data: unknown): {
   isValid: boolean;
   error?: string;
 } {
-  if (!data.title || typeof data.title !== "string") {
+  const recipeData = data as Record<string, unknown>;
+  
+  if (!recipeData.title || typeof recipeData.title !== "string") {
     return { isValid: false, error: "Título de receta requerido" };
   }
 
-  if (!data.description || typeof data.description !== "string") {
+  if (!recipeData.description || typeof recipeData.description !== "string") {
     return { isValid: false, error: "Descripción de receta requerida" };
   }
 
-  if (!data.instructions || typeof data.instructions !== "string") {
+  if (!recipeData.instructions || typeof recipeData.instructions !== "string") {
     return { isValid: false, error: "Instrucciones de receta requeridas" };
   }
 

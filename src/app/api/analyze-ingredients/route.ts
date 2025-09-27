@@ -51,7 +51,11 @@ export async function POST(request: NextRequest) {
     );
 
     console.log("Esperando resultado del análisis...");
-    const result = await Promise.race([analysisPromise, timeoutPromise]);
+    const result = await Promise.race([analysisPromise, timeoutPromise]) as {
+      detectedIngredients: unknown[];
+      missingIngredients: unknown[];
+      suggestions: string[];
+    };
     
     console.log("Análisis completado:", {
       detectedIngredients: result.detectedIngredients?.length || 0,

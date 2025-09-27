@@ -79,10 +79,15 @@ export default function RecipeGenerator({
     }
   };
 
-  const handleIngredientsDetected = (ingredients: unknown[]) => {
-    // Aquí puedes agregar los ingredientes al inventario
+  const handleIngredientsDetected = async (ingredients: unknown[]) => {
     console.log("Ingredientes detectados:", ingredients);
-    // Implementar lógica para agregar al inventario
+    
+    // Mostrar mensaje de éxito
+    alert(`¡Se agregaron ${ingredients.length} ingredientes al inventario exitosamente!`);
+    
+    // Recargar la página para actualizar el inventario
+    // Esto es necesario porque el inventario se pasa como prop desde el componente padre
+    window.location.reload();
   };
 
   const handleMealPlanGenerated = async (mealPlan: unknown[]) => {
@@ -108,25 +113,16 @@ export default function RecipeGenerator({
                 `Generando receta específica para ${date} - ${mealType}: ${meal.title}`
               );
 
-              // Generar receta específica usando solo los ingredientes específicos de esta comida
-              const response = await fetch("/api/recipes/generate-specific", {
+              // Generar receta usando la API básica (más confiable)
+              const response = await fetch("/api/recipes/generate-from-inventory", {
                 method: "POST",
                 headers: {
                   "Content-Type": "application/json",
                 },
                 body: JSON.stringify({
-                  title: meal.title,
-                  description: `Receta para ${meal.title} generada automáticamente desde el plan de comidas inteligente`,
                   mealType: mealType.toUpperCase(),
                   servings: 4,
-                  difficulty: "Fácil",
-                  cookingTime: 30,
-                  specificIngredients: meal.ingredients || [],
-                  preferences: {
-                    dietaryRestrictions: [],
-                    cuisineType: "Internacional",
-                    spiceLevel: "Medio",
-                  },
+                  suggestIngredients: true,
                 }),
                 // Timeout más largo para generación de recetas (5 minutos)
                 signal: AbortSignal.timeout(300000),
@@ -141,13 +137,11 @@ export default function RecipeGenerator({
                     `No se pudo obtener la receta para ${mealType}:`,
                     responseData
                   );
-                  // Si falla la generación específica, usar la API básica como fallback
-                  await createFallbackRecipe(date, mealType, meal);
                   continue;
                 }
 
                 console.log(
-                  `✅ Receta específica generada para ${mealType}:`,
+                  `✅ Receta generada para ${mealType}:`,
                   recipe.title
                 );
 
@@ -160,19 +154,15 @@ export default function RecipeGenerator({
                 );
               } else {
                 console.error(
-                  `Error generando receta específica para ${mealType}:`,
+                  `Error generando receta para ${mealType}:`,
                   await response.text()
                 );
-                // Fallback a receta básica
-                await createFallbackRecipe(date, mealType, meal);
               }
             } catch (error) {
               console.error(
                 `Error procesando ${mealType} para ${date}:`,
                 error
               );
-              // Fallback a receta básica
-              await createFallbackRecipe(date, mealType, meal);
             }
           }
         }
@@ -180,6 +170,9 @@ export default function RecipeGenerator({
 
       // Mostrar mensaje de éxito
       alert("¡Plan de comidas agregado exitosamente al calendario!");
+      
+      // Recargar la página para mostrar los cambios
+      window.location.reload();
     } catch (error) {
       console.error("Error al agregar plan de comidas al calendario:", error);
       alert(
@@ -188,44 +181,6 @@ export default function RecipeGenerator({
     }
   };
 
-  // Función auxiliar para crear receta de fallback
-  const createFallbackRecipe = async (
-    date: string,
-    mealType: string,
-    meal: { title: string; ingredients?: string[] }
-  ) => {
-    try {
-      console.log(`Creando receta de fallback para ${mealType}`);
-
-      const response = await fetch("/api/recipes/generate-from-inventory", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          mealType: mealType.toUpperCase(),
-          servings: 4,
-          suggestIngredients: true,
-        }),
-      });
-
-      if (response.ok) {
-        const responseData = await response.json();
-        const recipe = responseData.recipe;
-
-        if (recipe && recipe.id) {
-          await createOrUpdateCalendarEntry(
-            date,
-            mealType,
-            recipe.id,
-            meal.title
-          );
-        }
-      }
-    } catch (error) {
-      console.error(`Error en fallback para ${mealType}:`, error);
-    }
-  };
 
   // Función auxiliar para crear o actualizar entrada en calendario
   const createOrUpdateCalendarEntry = async (
@@ -239,7 +194,7 @@ export default function RecipeGenerator({
         `Procesando entrada en calendario para ${date} - ${mealType}`
       );
 
-      // Primero intentar crear una nueva entrada
+      // Intentar crear una nueva entrada
       const calendarResponse = await fetch("/api/meal-calendar", {
         method: "POST",
         headers: {
@@ -258,62 +213,69 @@ export default function RecipeGenerator({
           `✅ Entrada creada exitosamente para ${date} - ${mealType}`
         );
       } else {
-        // Si falla porque ya existe, buscar la entrada existente y actualizarla
         console.log(
-          `Entrada ya existe para ${date} - ${mealType}, actualizando...`
+          `Entrada ya existe para ${date} - ${mealType}, intentando actualizar...`
         );
 
-        // Buscar la entrada existente
-        const existingMealsResponse = await fetch(
-          `/api/meal-calendar?startDate=${new Date(
-            date
-          ).toISOString()}&endDate=${new Date(date).toISOString()}`
-        );
-
-        if (existingMealsResponse.ok) {
-          const existingMeals = await existingMealsResponse.json();
-          const existingMeal = existingMeals.find(
-            (m: { date: string; mealType: string; id: string }) => {
-              const mealDate = new Date(m.date);
-              return (
-                mealDate.toISOString().split("T")[0] ===
-                  new Date(date).toISOString().split("T")[0] &&
-                m.mealType === mealType.toUpperCase()
-              );
-            }
+        // Si falla porque ya existe, intentar actualizar
+        try {
+          // Buscar la entrada existente
+          const existingMealsResponse = await fetch(
+            `/api/meal-calendar?startDate=${new Date(
+              date
+            ).toISOString()}&endDate=${new Date(date).toISOString()}`
           );
 
-          if (existingMeal) {
-            // Actualizar la entrada existente
-            const updateResponse = await fetch(
-              `/api/meal-calendar/${existingMeal.id}`,
-              {
-                method: "PUT",
-                headers: {
-                  "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                  recipeId: recipeId,
-                  notes: `Plan actualizado automáticamente - ${mealTitle}`,
-                }),
+          if (existingMealsResponse.ok) {
+            const existingMeals = await existingMealsResponse.json();
+            const existingMeal = existingMeals.find(
+              (m: { date: string; mealType: string; id: string }) => {
+                const mealDate = new Date(m.date);
+                return (
+                  mealDate.toISOString().split("T")[0] ===
+                    new Date(date).toISOString().split("T")[0] &&
+                  m.mealType === mealType.toUpperCase()
+                );
               }
             );
 
-            if (updateResponse.ok) {
-              console.log(
-                `✅ Entrada actualizada exitosamente para ${date} - ${mealType}`
+            if (existingMeal) {
+              // Actualizar la entrada existente
+              const updateResponse = await fetch(
+                `/api/meal-calendar/${existingMeal.id}`,
+                {
+                  method: "PUT",
+                  headers: {
+                    "Content-Type": "application/json",
+                  },
+                  body: JSON.stringify({
+                    recipeId: recipeId,
+                    notes: `Plan actualizado automáticamente - ${mealTitle}`,
+                  }),
+                }
               );
+
+              if (updateResponse.ok) {
+                console.log(
+                  `✅ Entrada actualizada exitosamente para ${date} - ${mealType}`
+                );
+              } else {
+                console.error(
+                  `❌ Error actualizando entrada para ${date} - ${mealType}:`,
+                  await updateResponse.text()
+                );
+              }
             } else {
-              console.error(
-                `❌ Error actualizando entrada para ${date} - ${mealType}:`,
-                await updateResponse.text()
+              console.warn(
+                `No se encontró entrada existente para actualizar ${date} - ${mealType}`
               );
             }
-          } else {
-            console.error(
-              `❌ No se encontró entrada existente para actualizar ${date} - ${mealType}`
-            );
           }
+        } catch (updateError) {
+          console.error(
+            `Error en actualización para ${date} - ${mealType}:`,
+            updateError
+          );
         }
       }
     } catch (error) {

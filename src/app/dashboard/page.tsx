@@ -18,7 +18,10 @@ import {
   Timer,
   Users,
   Target,
-  BookOpen
+  BookOpen,
+  Trash2,
+  Edit,
+  Check
 } from 'lucide-react';
 import Confetti from 'react-confetti';
 import { Food } from '@/types/food';
@@ -52,6 +55,29 @@ export default function Dashboard() {
   } | null>(null);
   const [showConfetti, setShowConfetti] = useState(false);
   const [windowDimensions, setWindowDimensions] = useState({ width: 0, height: 0 });
+  const [isDeleting, setIsDeleting] = useState<string | null>(null);
+  const [showDeleteModal, setShowDeleteModal] = useState<string | null>(null);
+  const [editingFood, setEditingFood] = useState<Food | null>(null);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [editFormData, setEditFormData] = useState({
+    name: '',
+    description: '',
+    image: '',
+    icon: 'ChefHat',
+    category: 'VEGETABLE' as 'VEGETABLE' | 'FRUIT' | 'MEAT' | 'DAIRY' | 'GRAIN' | 'LIQUID' | 'SPICE' | 'OTHER',
+    unit: 'PIECE' as 'PIECE' | 'GRAM' | 'KILOGRAM' | 'LITER' | 'MILLILITER' | 'CUP' | 'TABLESPOON' | 'TEASPOON' | 'POUND' | 'OUNCE'
+  });
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
+  const [createFormData, setCreateFormData] = useState({
+    name: '',
+    description: '',
+    image: '',
+    icon: 'ChefHat',
+    category: 'VEGETABLE' as 'VEGETABLE' | 'FRUIT' | 'MEAT' | 'DAIRY' | 'GRAIN' | 'LIQUID' | 'SPICE' | 'OTHER',
+    unit: 'PIECE' as 'PIECE' | 'GRAM' | 'KILOGRAM' | 'LITER' | 'MILLILITER' | 'CUP' | 'TABLESPOON' | 'TEASPOON' | 'POUND' | 'OUNCE'
+  });
 
   // Mapeo de unidades para mostrar nombres amigables
   const unitLabels = {
@@ -66,6 +92,32 @@ export default function Dashboard() {
     'POUND': 'Libras',
     'OUNCE': 'Onzas'
   };
+
+  // Opciones de categorías
+  const categories = [
+    { value: 'VEGETABLE', label: 'Vegetal' },
+    { value: 'FRUIT', label: 'Fruta' },
+    { value: 'MEAT', label: 'Carne' },
+    { value: 'DAIRY', label: 'Lácteo' },
+    { value: 'GRAIN', label: 'Grano' },
+    { value: 'LIQUID', label: 'Líquido' },
+    { value: 'SPICE', label: 'Especia' },
+    { value: 'OTHER', label: 'Otro' }
+  ];
+
+  // Opciones de unidades
+  const units = [
+    { value: 'PIECE', label: 'Piezas' },
+    { value: 'GRAM', label: 'Gramos' },
+    { value: 'KILOGRAM', label: 'Kilogramos' },
+    { value: 'LITER', label: 'Litros' },
+    { value: 'MILLILITER', label: 'Mililitros' },
+    { value: 'CUP', label: 'Tazas' },
+    { value: 'TABLESPOON', label: 'Cucharadas' },
+    { value: 'TEASPOON', label: 'Cucharaditas' },
+    { value: 'POUND', label: 'Libras' },
+    { value: 'OUNCE', label: 'Onzas' }
+  ];
 
   useEffect(() => {
     if (session) {
@@ -316,6 +368,187 @@ export default function Dashboard() {
     setGeneratedRecipe(null);
   };
 
+  const handleDeleteIngredient = async (foodId: string) => {
+    try {
+      setIsDeleting(foodId);
+      
+      const response = await fetch(`/api/food/${foodId}`, {
+        method: 'DELETE',
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        // Remover el ingrediente de la lista local
+        setAllFoods(prev => prev.filter(food => food.id !== foodId));
+        
+        // Limpiar selecciones y cantidades si estaba seleccionado
+        setLocalSelections(prev => {
+          const newSelections = { ...prev };
+          delete newSelections[foodId];
+          return newSelections;
+        });
+        
+        setIngredientQuantities(prev => {
+          const newQuantities = { ...prev };
+          delete newQuantities[foodId];
+          return newQuantities;
+        });
+        
+        setShowDeleteModal(null);
+        alert('Ingrediente eliminado exitosamente');
+      } else {
+        alert(result.error || 'Error al eliminar el ingrediente');
+      }
+    } catch (error) {
+      console.error('Error eliminando ingrediente:', error);
+      alert('Error de conexión al eliminar ingrediente');
+    } finally {
+      setIsDeleting(null);
+    }
+  };
+
+  const handleEditIngredient = (food: Food) => {
+    setEditingFood(food);
+    setEditFormData({
+      name: food.name,
+      description: food.description,
+      image: food.image,
+      icon: food.icon || 'ChefHat',
+      category: food.category,
+      unit: food.unit
+    });
+    setShowEditModal(true);
+  };
+
+  const handleSaveEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!editFormData.name.trim() || !editFormData.description.trim()) {
+      alert('Por favor completa todos los campos requeridos');
+      return;
+    }
+
+    if (!editingFood) return;
+
+    try {
+      setIsSaving(true);
+      
+      const response = await fetch(`/api/food/${editingFood.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(editFormData),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        // Actualizar el ingrediente en la lista local
+        setAllFoods(prev => prev.map(food => 
+          food.id === editingFood.id 
+            ? { ...food, ...editFormData }
+            : food
+        ));
+        
+        setShowEditModal(false);
+        setEditingFood(null);
+        alert('Ingrediente actualizado exitosamente');
+      } else {
+        alert(result.error || 'Error al actualizar el ingrediente');
+      }
+    } catch (error) {
+      console.error('Error actualizando ingrediente:', error);
+      alert('Error de conexión al actualizar ingrediente');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const closeEditModal = () => {
+    setShowEditModal(false);
+    setEditingFood(null);
+    setEditFormData({
+      name: '',
+      description: '',
+      image: '',
+      icon: 'ChefHat',
+      category: 'VEGETABLE',
+      unit: 'PIECE'
+    });
+  };
+
+  const handleCreateIngredient = () => {
+    setCreateFormData({
+      name: '',
+      description: '',
+      image: '',
+      icon: 'ChefHat',
+      category: 'VEGETABLE',
+      unit: 'PIECE'
+    });
+    setShowCreateModal(true);
+  };
+
+  const handleSaveCreate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!createFormData.name.trim() || !createFormData.description.trim()) {
+      alert('Por favor completa todos los campos requeridos');
+      return;
+    }
+
+    try {
+      setIsCreating(true);
+      
+      const response = await fetch('/api/food', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(createFormData),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        // Agregar el nuevo ingrediente a la lista local
+        setAllFoods(prev => [...prev, result.data]);
+        
+        setShowCreateModal(false);
+        setCreateFormData({
+          name: '',
+          description: '',
+          image: '',
+          icon: 'ChefHat',
+          category: 'VEGETABLE',
+          unit: 'PIECE'
+        });
+        alert('Ingrediente creado exitosamente');
+      } else {
+        alert(result.error || 'Error al crear el ingrediente');
+      }
+    } catch (error) {
+      console.error('Error creando ingrediente:', error);
+      alert('Error de conexión al crear ingrediente');
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
+  const closeCreateModal = () => {
+    setShowCreateModal(false);
+    setCreateFormData({
+      name: '',
+      description: '',
+      image: '',
+      icon: 'ChefHat',
+      category: 'VEGETABLE',
+      unit: 'PIECE'
+    });
+  };
+
   if (loading) {
     return (
       <ProtectedRoute>
@@ -470,6 +703,16 @@ export default function Dashboard() {
               </div>
               
               <div className="flex items-center space-x-3">
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={handleCreateIngredient}
+                  className="flex items-center space-x-2 bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-lg transition-all duration-200 shadow-medium"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Agregar Ingrediente</span>
+                </motion.button>
+
                 {hasUnsavedChanges && (
                   <motion.button
                     initial={{ opacity: 0, scale: 0.8 }}
@@ -557,26 +800,57 @@ export default function Dashboard() {
                         </span>
                       </div>
                       
-                      {/* Selection Toggle */}
-                      <div 
-                        className={`inline-flex items-center space-x-2 px-3 py-1 rounded-full text-sm font-medium cursor-pointer transition-colors ${
-                          isSelected
-                            ? 'bg-primary-200 text-primary-800'
-                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                        }`}
-                        onClick={() => toggleLocalSelection(food.id)}
-                      >
-                        {isSelected ? (
-                          <>
-                            <CheckCircle className="w-4 h-4" />
-                            <span>Disponible</span>
-                          </>
-                        ) : (
-                          <>
-                            <Plus className="w-4 h-4" />
-                            <span>Agregar</span>
-                          </>
-                        )}
+                      {/* Action Buttons */}
+                      <div className="flex items-center justify-center space-x-2">
+                        {/* Selection Toggle */}
+                        <div 
+                          className={`inline-flex items-center space-x-2 px-3 py-1 rounded-full text-sm font-medium cursor-pointer transition-colors ${
+                            isSelected
+                              ? 'bg-primary-200 text-primary-800'
+                              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                          }`}
+                          onClick={() => toggleLocalSelection(food.id)}
+                        >
+                          {isSelected ? (
+                            <>
+                              <CheckCircle className="w-4 h-4" />
+                              <span>Disponible</span>
+                            </>
+                          ) : (
+                            <>
+                              <Plus className="w-4 h-4" />
+                              <span>Agregar</span>
+                            </>
+                          )}
+                        </div>
+
+                        {/* Edit Button */}
+                        <motion.button
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleEditIngredient(food);
+                          }}
+                          className="p-2 text-blue-500 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-all duration-200"
+                          title="Editar ingrediente"
+                        >
+                          <Edit className="w-4 h-4" />
+                        </motion.button>
+
+                        {/* Delete Button */}
+                        <motion.button
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setShowDeleteModal(food.id);
+                          }}
+                          className="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-all duration-200"
+                          title="Eliminar ingrediente"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </motion.button>
                       </div>
 
                       {/* Quantity Controls - Only show when selected */}
@@ -796,6 +1070,488 @@ export default function Dashboard() {
                     <BookOpen className="w-5 h-5" />
                     <span>Ver Todas las Recetas</span>
                   </button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Create Modal */}
+      <AnimatePresence>
+        {showCreateModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+            onClick={(e) => e.target === e.currentTarget && closeCreateModal()}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="bg-white rounded-2xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-strong"
+            >
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xl font-semibold text-gray-900">
+                  Nuevo Ingrediente
+                </h3>
+                <button
+                  onClick={closeCreateModal}
+                  className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <form onSubmit={handleSaveCreate} className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Nombre *
+                    </label>
+                    <input
+                      type="text"
+                      value={createFormData.name}
+                      onChange={(e) => setCreateFormData({ ...createFormData, name: e.target.value })}
+                      className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all duration-200"
+                      placeholder="Ej: Tomate"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Categoría
+                    </label>
+                    <select
+                      value={createFormData.category}
+                      onChange={(e) => setCreateFormData({ ...createFormData, category: e.target.value as 'VEGETABLE' | 'FRUIT' | 'MEAT' | 'DAIRY' | 'GRAIN' | 'LIQUID' | 'SPICE' | 'OTHER' })}
+                      className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all duration-200"
+                    >
+                      {categories.map((category) => (
+                        <option key={category.value} value={category.value}>
+                          {category.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Descripción *
+                  </label>
+                  <textarea
+                    value={createFormData.description}
+                    onChange={(e) => setCreateFormData({ ...createFormData, description: e.target.value })}
+                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all duration-200 resize-none"
+                    rows={3}
+                    placeholder="Descripción del ingrediente..."
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    URL de Imagen
+                  </label>
+                  <input
+                    type="url"
+                    value={createFormData.image}
+                    onChange={(e) => setCreateFormData({ ...createFormData, image: e.target.value })}
+                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all duration-200"
+                    placeholder="https://ejemplo.com/imagen.jpg"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Unidad de Medida
+                    </label>
+                    <select
+                      value={createFormData.unit}
+                      onChange={(e) => setCreateFormData({ ...createFormData, unit: e.target.value as 'PIECE' | 'GRAM' | 'KILOGRAM' | 'LITER' | 'MILLILITER' | 'CUP' | 'TABLESPOON' | 'TEASPOON' | 'POUND' | 'OUNCE' })}
+                      className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all duration-200"
+                    >
+                      {units.map((unit) => (
+                        <option key={unit.value} value={unit.value}>
+                          {unit.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Icono
+                    </label>
+                    <div className="flex items-center space-x-2">
+                      <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
+                        {renderIcon(createFormData.icon, "w-6 h-6 text-gray-600")}
+                      </div>
+                      <select
+                        value={createFormData.icon}
+                        onChange={(e) => setCreateFormData({ ...createFormData, icon: e.target.value })}
+                        className="flex-1 px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all duration-200"
+                      >
+                        <option value="ChefHat">ChefHat</option>
+                        <option value="Apple">Apple</option>
+                        <option value="Banana">Banana</option>
+                        <option value="Carrot">Carrot</option>
+                        <option value="Cherry">Cherry</option>
+                        <option value="Coffee">Coffee</option>
+                        <option value="Cookie">Cookie</option>
+                        <option value="Egg">Egg</option>
+                        <option value="Fish">Fish</option>
+                        <option value="Grape">Grape</option>
+                        <option value="IceCream">IceCream</option>
+                        <option value="Milk">Milk</option>
+                        <option value="Pizza">Pizza</option>
+                        <option value="Sandwich">Sandwich</option>
+                        <option value="Utensils">Utensils</option>
+                        <option value="Wine">Wine</option>
+                        <option value="Beef">Beef</option>
+                        <option value="Croissant">Croissant</option>
+                        <option value="Drumstick">Drumstick</option>
+                        <option value="Hamburger">Hamburger</option>
+                        <option value="IceCream2">IceCream2</option>
+                        <option value="Salad">Salad</option>
+                        <option value="Soup">Soup</option>
+                        <option value="Wheat">Wheat</option>
+                        <option value="Leaf">Leaf</option>
+                        <option value="Droplets">Droplets</option>
+                        <option value="Package">Package</option>
+                        <option value="Zap">Zap</option>
+                        <option value="Circle">Circle</option>
+                        <option value="Square">Square</option>
+                        <option value="Triangle">Triangle</option>
+                        <option value="Heart">Heart</option>
+                        <option value="Star">Star</option>
+                        <option value="Sun">Sun</option>
+                        <option value="Moon">Moon</option>
+                        <option value="Cloud">Cloud</option>
+                        <option value="Flame">Flame</option>
+                        <option value="Snowflake">Snowflake</option>
+                        <option value="Flower">Flower</option>
+                        <option value="TreePine">TreePine</option>
+                        <option value="Bug">Bug</option>
+                        <option value="Bird">Bird</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex space-x-3 pt-4">
+                  <button
+                    type="button"
+                    onClick={closeCreateModal}
+                    className="flex-1 px-4 py-3 text-gray-600 hover:text-gray-800 transition-colors font-medium"
+                  >
+                    Cancelar
+                  </button>
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    type="submit"
+                    disabled={isCreating}
+                    className="flex-1 flex items-center justify-center space-x-2 bg-green-600 hover:bg-green-700 disabled:bg-green-300 disabled:text-green-100 text-white font-medium py-3 px-4 rounded-lg transition-all duration-200"
+                  >
+                    {isCreating ? (
+                      <>
+                        <motion.div
+                        animate={{ rotate: 360 }}
+                        transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                        className="w-4 h-4 border-2 border-white border-t-transparent rounded-full"
+                      />
+                      <span>Creando...</span>
+                    </>
+                    ) : (
+                      <>
+                        <Plus className="w-4 h-4" />
+                        <span>Crear Ingrediente</span>
+                      </>
+                    )}
+                  </motion.button>
+                </div>
+              </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Edit Modal */}
+      <AnimatePresence>
+        {showEditModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+            onClick={(e) => e.target === e.currentTarget && closeEditModal()}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="bg-white rounded-2xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-strong"
+            >
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xl font-semibold text-gray-900">
+                  Editar Ingrediente
+                </h3>
+                <button
+                  onClick={closeEditModal}
+                  className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <form onSubmit={handleSaveEdit} className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Nombre *
+                    </label>
+                    <input
+                      type="text"
+                      value={editFormData.name}
+                      onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
+                      className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all duration-200"
+                      placeholder="Ej: Tomate"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Categoría
+                    </label>
+                    <select
+                      value={editFormData.category}
+                      onChange={(e) => setEditFormData({ ...editFormData, category: e.target.value as 'VEGETABLE' | 'FRUIT' | 'MEAT' | 'DAIRY' | 'GRAIN' | 'LIQUID' | 'SPICE' | 'OTHER' })}
+                      className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all duration-200"
+                    >
+                      {categories.map((category) => (
+                        <option key={category.value} value={category.value}>
+                          {category.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Descripción *
+                  </label>
+                  <textarea
+                    value={editFormData.description}
+                    onChange={(e) => setEditFormData({ ...editFormData, description: e.target.value })}
+                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all duration-200 resize-none"
+                    rows={3}
+                    placeholder="Descripción del ingrediente..."
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    URL de Imagen
+                  </label>
+                  <input
+                    type="url"
+                    value={editFormData.image}
+                    onChange={(e) => setEditFormData({ ...editFormData, image: e.target.value })}
+                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all duration-200"
+                    placeholder="https://ejemplo.com/imagen.jpg"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Unidad de Medida
+                    </label>
+                    <select
+                      value={editFormData.unit}
+                      onChange={(e) => setEditFormData({ ...editFormData, unit: e.target.value as 'PIECE' | 'GRAM' | 'KILOGRAM' | 'LITER' | 'MILLILITER' | 'CUP' | 'TABLESPOON' | 'TEASPOON' | 'POUND' | 'OUNCE' })}
+                      className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all duration-200"
+                    >
+                      {units.map((unit) => (
+                        <option key={unit.value} value={unit.value}>
+                          {unit.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Icono
+                    </label>
+                    <div className="flex items-center space-x-2">
+                      <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
+                        {renderIcon(editFormData.icon, "w-6 h-6 text-gray-600")}
+                      </div>
+                      <select
+                        value={editFormData.icon}
+                        onChange={(e) => setEditFormData({ ...editFormData, icon: e.target.value })}
+                        className="flex-1 px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all duration-200"
+                      >
+                        <option value="ChefHat">ChefHat</option>
+                        <option value="Apple">Apple</option>
+                        <option value="Banana">Banana</option>
+                        <option value="Carrot">Carrot</option>
+                        <option value="Cherry">Cherry</option>
+                        <option value="Coffee">Coffee</option>
+                        <option value="Cookie">Cookie</option>
+                        <option value="Egg">Egg</option>
+                        <option value="Fish">Fish</option>
+                        <option value="Grape">Grape</option>
+                        <option value="IceCream">IceCream</option>
+                        <option value="Milk">Milk</option>
+                        <option value="Pizza">Pizza</option>
+                        <option value="Sandwich">Sandwich</option>
+                        <option value="Utensils">Utensils</option>
+                        <option value="Wine">Wine</option>
+                        <option value="Beef">Beef</option>
+                        <option value="Croissant">Croissant</option>
+                        <option value="Drumstick">Drumstick</option>
+                        <option value="Hamburger">Hamburger</option>
+                        <option value="IceCream2">IceCream2</option>
+                        <option value="Salad">Salad</option>
+                        <option value="Soup">Soup</option>
+                        <option value="Wheat">Wheat</option>
+                        <option value="Leaf">Leaf</option>
+                        <option value="Droplets">Droplets</option>
+                        <option value="Package">Package</option>
+                        <option value="Zap">Zap</option>
+                        <option value="Circle">Circle</option>
+                        <option value="Square">Square</option>
+                        <option value="Triangle">Triangle</option>
+                        <option value="Heart">Heart</option>
+                        <option value="Star">Star</option>
+                        <option value="Sun">Sun</option>
+                        <option value="Moon">Moon</option>
+                        <option value="Cloud">Cloud</option>
+                        <option value="Flame">Flame</option>
+                        <option value="Snowflake">Snowflake</option>
+                        <option value="Flower">Flower</option>
+                        <option value="TreePine">TreePine</option>
+                        <option value="Bug">Bug</option>
+                        <option value="Bird">Bird</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex space-x-3 pt-4">
+                  <button
+                    type="button"
+                    onClick={closeEditModal}
+                    className="flex-1 px-4 py-3 text-gray-600 hover:text-gray-800 transition-colors font-medium"
+                  >
+                    Cancelar
+                  </button>
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    type="submit"
+                    disabled={isSaving}
+                    className="flex-1 flex items-center justify-center space-x-2 bg-primary-600 hover:bg-primary-700 disabled:bg-primary-300 disabled:text-primary-100 text-white font-medium py-3 px-4 rounded-lg transition-all duration-200"
+                  >
+                    {isSaving ? (
+                      <>
+                        <motion.div
+                          animate={{ rotate: 360 }}
+                          transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                          className="w-4 h-4 border-2 border-white border-t-transparent rounded-full"
+                        />
+                        <span>Guardando...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Check className="w-4 h-4" />
+                        <span>Guardar Cambios</span>
+                      </>
+                    )}
+                  </motion.button>
+                </div>
+              </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Delete Confirmation Modal */}
+      <AnimatePresence>
+        {showDeleteModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+            onClick={(e) => e.target === e.currentTarget && setShowDeleteModal(null)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="bg-white rounded-2xl p-6 w-full max-w-md shadow-strong"
+            >
+              <div className="text-center">
+                <div className="w-16 h-16 mx-auto mb-4 bg-red-100 rounded-full flex items-center justify-center">
+                  <Trash2 className="w-8 h-8 text-red-600" />
+                </div>
+                
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                  ¿Eliminar ingrediente?
+                </h3>
+                
+                <p className="text-gray-700 mb-6">
+                  Esta acción eliminará el ingrediente <strong>{allFoods.find(f => f.id === showDeleteModal)?.name}</strong> de la base de datos.
+                </p>
+                
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+                  <p className="text-red-800 text-sm font-medium">
+                    ⚠️ Esta acción es irreversible y eliminará el ingrediente para todos los usuarios.
+                  </p>
+                </div>
+                
+                <div className="flex space-x-3">
+                  <button
+                    onClick={() => setShowDeleteModal(null)}
+                    className="flex-1 px-4 py-3 text-gray-600 hover:text-gray-800 transition-colors font-medium"
+                  >
+                    Cancelar
+                  </button>
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => handleDeleteIngredient(showDeleteModal)}
+                    disabled={isDeleting === showDeleteModal}
+                    className="flex-1 flex items-center justify-center space-x-2 bg-red-600 hover:bg-red-700 disabled:bg-red-300 disabled:text-red-100 text-white font-medium py-3 px-4 rounded-lg transition-all duration-200"
+                  >
+                    {isDeleting === showDeleteModal ? (
+                      <>
+                        <motion.div
+                          animate={{ rotate: 360 }}
+                          transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                          className="w-4 h-4 border-2 border-white border-t-transparent rounded-full"
+                        />
+                        <span>Eliminando...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Trash2 className="w-4 h-4" />
+                        <span>Eliminar</span>
+                      </>
+                    )}
+                  </motion.button>
                 </div>
               </div>
             </motion.div>

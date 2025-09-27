@@ -2,7 +2,7 @@
 
 ## 📋 Resumen Ejecutivo
 
-**Cookify** es una aplicación web moderna construida con Next.js 15 que permite a los usuarios gestionar su inventario de ingredientes, planificar comidas en un calendario, y generar recetas personalizadas utilizando la API de Google Gemini. La aplicación incluye un sistema completo de autenticación, gestión de inventario con cantidades y unidades, calendario de comidas, generación inteligente de recetas, **análisis de imágenes con IA multimodal**, planificador inteligente masivo, sistema de reintentos para APIs sobrecargadas, **sistema de cache inteligente**, y una interfaz moderna con iconos de Lucide React y animaciones Framer Motion.
+**Cookify** es una aplicación web moderna construida con Next.js 15 que permite a los usuarios gestionar su inventario de ingredientes, planificar comidas en un calendario, y generar recetas personalizadas utilizando la API de Google Gemini. La aplicación incluye un sistema completo de autenticación, gestión de inventario con cantidades y unidades, calendario de comidas, **generación inteligente de recetas con preselección de ingredientes**, **análisis de imágenes con IA multimodal**, **planificador inteligente masivo con generación aislada**, **sistema de análisis de recetas existentes para evitar repeticiones**, sistema de reintentos para APIs sobrecargadas, **sistema de cache inteligente**, y una interfaz moderna con iconos de Lucide React y animaciones Framer Motion.
 
 ## 🏗️ Arquitectura Técnica
 
@@ -289,11 +289,13 @@ model VerificationToken { ... }
 #### 4. Planificador Inteligente Masivo (Meal Calendar)
 1. Usuario activa el "Planificador Inteligente"
 2. Selecciona múltiples slots de comida en el calendario
-3. El sistema agrupa las selecciones por tipo de comida
-4. Genera recetas automáticamente para cada tipo de comida
-5. Asigna las recetas a los slots seleccionados
-6. Maneja automáticamente conflictos (reemplaza recetas existentes)
-7. Sistema de reintentos para manejar sobrecarga de API
+3. **Sistema de Preselección Inteligente**: El sistema preselecciona ingredientes específicos según el tipo de comida
+4. **Generación Aislada**: Crea recetas de forma independiente sin ver las anteriores
+5. **Análisis de Recetas Existentes**: Analiza recetas previas para evitar repeticiones
+6. **Agrupación Lógica**: Agrupa slots por tipo de comida para máxima variedad
+7. **Guardado Masivo**: Guarda todas las recetas al final del proceso
+8. Maneja automáticamente conflictos (reemplaza recetas existentes)
+9. Sistema de reintentos para manejar sobrecarga de API
 
 ### Prompts de Gemini
 
@@ -327,32 +329,39 @@ Responde en formato JSON con la siguiente estructura:
 }
 ```
 
-#### Prompt Avanzado (Meal Planner)
+#### Prompt Avanzado con Preselección Inteligente (Meal Planner)
 ```
-Necesito que me crees una receta para [TIPO_COMIDA] utilizando estos ingredientes disponibles en mi inventario:
+Necesito que me crees una receta para [TIPO_COMIDA] utilizando ÚNICAMENTE estos ingredientes preseleccionados:
 
-[INVENTARIO_CON_CANTIDADES]
+[INGREDIENTES_PRESELECCIONADOS]
 
-Por favor, genera UNA receta completa y detallada que incluya:
+IMPORTANTE: Solo puedes usar los ingredientes listados arriba. NO uses otros ingredientes del inventario.
 
-1. Título atractivo de la receta
-2. Descripción breve (2-3 líneas)
-3. Instrucciones paso a paso detalladas
-4. Tiempo de cocción estimado en minutos
-5. Nivel de dificultad (Fácil, Medio, Difícil)
-6. Número de porciones
-7. Lista de ingredientes necesarios con cantidades específicas
+REGLAS ESPECÍFICAS PARA [TIPO_COMIDA]:
+- INGREDIENTES TÍPICOS: [ingredientes específicos por tipo de comida]
+- ESTILO: [estilo específico por tipo de comida]
+- EJEMPLOS: [ejemplos de títulos apropiados]
 
-Requisitos:
-- Usa principalmente los ingredientes disponibles en mi inventario
-- Calcula las cantidades exactas necesarias para la receta
-- Puedes sugerir ingredientes básicos adicionales (sal, aceite, especias comunes) si es necesario
-- Las instrucciones deben ser claras y fáciles de seguir
-- El tiempo de cocción debe ser realista
-- Asegúrate de que la receta sea apropiada para [TIPO_COMIDA]
-- Responde en español
+CONTEXTO DE RECETAS EXISTENTES:
+- Ingredientes ya usados recientemente: [lista de ingredientes usados]
+- Títulos ya usados: [lista de títulos usados]
+- Métodos de cocción ya usados: [lista de métodos usados]
 
-[OPCIONAL: También sugiere ingredientes adicionales que podrían mejorar la receta o crear más variedad]
+INSTRUCCIONES PARA EVITAR REPETICIÓN:
+- NO uses los ingredientes ya listados arriba
+- NO uses títulos similares a los ya listados
+- Varía los métodos de cocción (evita: [métodos ya usados])
+- Crea una receta completamente diferente y única
+
+REGLAS GENERALES:
+- Título simple y directo (máximo 4 palabras)
+- Solo 3-4 ingredientes principales
+- Tiempo de cocción: 15-25 minutos
+- Dificultad: Fácil
+- Instrucciones claras en 4 pasos máximo
+- Usa SOLO los ingredientes preseleccionados arriba
+
+IMPORTANTE: Crea una receta única y diferente a las recetas existentes mencionadas arriba.
 
 Responde en formato JSON con la siguiente estructura:
 {
@@ -688,11 +697,15 @@ GEMINI_API_KEY="tu-api-key-de-gemini-aqui"
    - Seguimiento de comidas completadas
    - Navegación por meses
 
-5. **Generación de Recetas con IA (Sistema Cuádruple)**
+5. **Generación de Recetas con IA (Sistema Avanzado)**
    - **Sistema Básico**: Recetas desde ingredientes seleccionados
-   - **Sistema Avanzado**: Recetas desde inventario con cantidades
+   - **Sistema Avanzado con Preselección**: Recetas desde inventario con ingredientes preseleccionados inteligentemente
    - **Sistema de Análisis de Imágenes**: Análisis multimodal con IA
-   - **Sistema Masivo**: Planificador inteligente para múltiples comidas
+   - **Sistema Masivo con Generación Aislada**: Planificador inteligente para múltiples comidas
+   - **Sistema de Preselección Inteligente**: Categorización automática de ingredientes por tipo de comida
+   - **Sistema de Análisis de Recetas Existentes**: Evita repeticiones analizando recetas previas
+   - **Generación Aislada**: Cada receta se crea sin contexto de otras recetas
+   - **Agrupación Lógica**: Agrupa ingredientes por tipo de comida para máxima coherencia
    - Integración con Google Gemini 1.5 Flash
    - Sistema de reintentos automático (3 intentos con backoff exponencial)
    - Recetas personalizadas por tipo de comida
@@ -702,7 +715,7 @@ GEMINI_API_KEY="tu-api-key-de-gemini-aqui"
    - Manejo inteligente de sobrecarga de API
    - **Sistema de Cache**: Cache inteligente para recetas (24 horas)
    - **Análisis Multimodal**: Detección de ingredientes en imágenes
-   - **Recetas Específicas**: Cada receta usa solo ingredientes relevantes
+   - **Recetas Específicas**: Cada receta usa solo ingredientes relevantes y apropiados
 
 6. **Interfaz de Usuario Moderna**
    - Diseño minimalista con Tailwind CSS v4
@@ -755,9 +768,14 @@ GEMINI_API_KEY="tu-api-key-de-gemini-aqui"
 1. **Registro/Login**: Usuario se registra o inicia sesión
 2. **Gestión de Inventario**: Va a "Meal Planner" → "Inventario" y agrega ingredientes con cantidades específicas
 3. **Planificación**: Va a "Calendario" y programa comidas por fecha y tipo
-4. **Generación Inteligente**: Va a "Generador" y crea recetas basadas en inventario disponible
+4. **Generación Inteligente con Preselección**: Va a "Generador" y crea recetas basadas en ingredientes preseleccionados inteligentemente
 5. **Programación**: Asigna recetas generadas a fechas específicas en el calendario
-6. **Planificador Masivo**: Usa el "Planificador Inteligente" para generar múltiples recetas automáticamente
+6. **Planificador Masivo Inteligente**: Usa el "Planificador Inteligente" para generar múltiples recetas automáticamente con:
+   - **Preselección de ingredientes** según tipo de comida
+   - **Generación aislada** sin contexto de otras recetas
+   - **Análisis de recetas existentes** para evitar repeticiones
+   - **Agrupación lógica** por tipo de comida
+   - **Guardado masivo** al final del proceso
 7. **Seguimiento**: Marca comidas como completadas y gestiona su planificación semanal
 8. **Edición**: Edita o regenera recetas existentes con IA
 
@@ -882,7 +900,10 @@ Cookify es una aplicación completa y funcional que demuestra la integración ex
 - **Generación inteligente** de recetas basada en inventario disponible
 
 ### Características Destacadas
-- **Sistema cuádruple de generación**: Básico (ingredientes), Avanzado (inventario), Análisis de imágenes (multimodal) y Masivo (planificador inteligente)
+- **Sistema avanzado de generación**: Básico (ingredientes), Avanzado con preselección (inventario), Análisis de imágenes (multimodal) y Masivo con generación aislada (planificador inteligente)
+- **Preselección Inteligente**: Categorización automática de ingredientes por tipo de comida
+- **Análisis de Recetas Existentes**: Evita repeticiones analizando recetas previas
+- **Generación Aislada**: Cada receta se crea sin contexto de otras recetas
 - **Análisis multimodal**: Detección automática de ingredientes en imágenes con IA
 - **Planificación completa**: Desde inventario hasta calendario de comidas
 - **Interfaz moderna**: Diseño minimalista con glassmorphism y animaciones
@@ -894,8 +915,10 @@ Cookify es una aplicación completa y funcional que demuestra la integración ex
 - **Iconos dinámicos**: 40+ iconos de Lucide React para ingredientes
 - **Celebraciones visuales**: Confetti para feedback positivo
 - **Gestión avanzada**: Edición, eliminación y regeneración de recetas
-- **Recetas específicas**: Cada receta usa solo ingredientes relevantes
+- **Recetas específicas**: Cada receta usa solo ingredientes relevantes y apropiados
 - **Manejo de cuotas**: Mensajes específicos para límites de API
+- **Coherencia culinaria**: Ingredientes que van bien juntos según tipo de comida
+- **Variedad garantizada**: Máxima variedad en recetas generadas
 
 La aplicación está lista para producción y puede ser extendida con funcionalidades adicionales según las necesidades del negocio.
 
@@ -913,9 +936,13 @@ La aplicación está lista para producción y puede ser extendida con funcionali
 - **Logging detallado** para debugging
 - **Manejo robusto** de APIs externas
 
-### ✅ Planificador Inteligente Masivo
+### ✅ Planificador Inteligente Masivo Avanzado
 - **Selección múltiple** de slots de comida
-- **Generación automática** de recetas por tipo de comida
+- **Preselección Inteligente**: Categorización automática de ingredientes por tipo de comida
+- **Generación Aislada**: Cada receta se crea sin contexto de otras recetas
+- **Análisis de Recetas Existentes**: Evita repeticiones analizando recetas previas
+- **Agrupación Lógica**: Agrupa slots por tipo de comida para máxima variedad
+- **Guardado Masivo**: Guarda todas las recetas al final del proceso
 - **Manejo de conflictos** (reemplaza recetas existentes)
 - **Feedback visual** durante la generación
 
@@ -962,9 +989,66 @@ La aplicación está lista para producción y puede ser extendida con funcionali
 - **Mensajes específicos** para límites de API
 - **Fallback automático** cuando se excede la cuota
 
-### ✅ Recetas Específicas por Ingredientes
-- **API específica** para ingredientes determinados
-- **Recetas precisas** que usan solo ingredientes relevantes
-- **Eliminación de ingredientes** genéricos en recetas
-- **Integración con calendario** automática
-- **Creación/actualización** de entradas en calendario
+### ✅ Sistema de Preselección Inteligente de Ingredientes
+- **Categorización Automática**: Ingredientes categorizados por tipo de comida
+- **Preselección Inteligente**: Solo ingredientes apropiados para cada tipo de comida
+- **Categorías Específicas**: Primarios, secundarios y a evitar por tipo de comida
+- **Coherencia Culinaria**: Ingredientes que van bien juntos
+- **Variedad Garantizada**: Máximo 4 ingredientes por receta
+- **Evita Conflictos**: No mezcla ingredientes inapropiados
+
+### ✅ Sistema de Análisis de Recetas Existentes
+- **Análisis Automático**: Analiza recetas previas del usuario
+- **Extracción de Patrones**: Ingredientes, títulos y métodos de cocción usados
+- **Contexto Inteligente**: Proporciona contexto específico a la IA
+- **Evita Repeticiones**: Instruye a la IA para crear recetas únicas
+- **Variedad Garantizada**: Cada receta es diferente a las anteriores
+
+### ✅ Generación Aislada y Masiva
+- **Generación Aislada**: Cada receta se crea sin ver las anteriores
+- **Agrupación Lógica**: Agrupa slots por tipo de comida
+- **Procesamiento Paralelo**: Múltiples recetas simultáneamente
+- **Guardado Masivo**: Todas las recetas se guardan al final
+- **Manejo de Errores**: Cada receta se procesa independientemente
+- **Logging Detallado**: Seguimiento completo del proceso
+
+## 🧠 Sistema de Preselección Inteligente de Ingredientes
+
+### Categorización por Tipo de Comida
+
+#### Desayuno (BREAKFAST)
+- **Primarios**: huevos, pan, leche, yogur, queso, mantequilla, jamón, cereales, avena
+- **Secundarios**: frutas, mermelada, miel, café, té, galletas, bizcochos
+- **Evita**: carne, pollo, pescado, arroz, pasta, papas, cebolla, tomate
+
+#### Almuerzo (LUNCH)
+- **Primarios**: carne, pollo, pescado, arroz, pasta, papas, cebolla, tomate, lechuga
+- **Secundarios**: queso, huevos, pan, aceite, sal, pimienta, especias
+- **Evita**: leche, yogur, cereales, mermelada, café, té
+
+#### Merienda (SNACK)
+- **Primarios**: frutas, yogur, galletas, bizcochos, queso, pan, mermelada
+- **Secundarios**: leche, café, té, miel, nueces, almendras
+- **Evita**: carne, pollo, pescado, arroz, pasta, papas, cebolla
+
+#### Cena (DINNER)
+- **Primarios**: pescado, pollo, verduras, ensalada, sopa, pasta ligera
+- **Secundarios**: queso, huevos, pan, aceite, especias, hierbas
+- **Evita**: cereales, mermelada, café, té, galletas, bizcochos
+
+### Algoritmo de Preselección
+
+1. **Análisis de Inventario**: Evalúa todos los ingredientes disponibles
+2. **Categorización Inteligente**: Clasifica ingredientes según tipo de comida
+3. **Selección Primaria**: Prioriza ingredientes primarios (3-4 máximo)
+4. **Selección Secundaria**: Completa con ingredientes secundarios si es necesario
+5. **Evita Conflictos**: Excluye ingredientes inapropiados para el tipo de comida
+6. **Validación**: Asegura coherencia culinaria en la selección
+
+### Beneficios del Sistema
+
+- **Coherencia Culinaria**: Ingredientes que van bien juntos
+- **Variedad Garantizada**: Máximo 4 ingredientes por receta
+- **Evita Conflictos**: No mezcla ingredientes inapropiados
+- **Eficiencia**: Reduce la complejidad para la IA
+- **Calidad**: Mejora la calidad de las recetas generadas

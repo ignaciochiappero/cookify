@@ -11,10 +11,13 @@
     "db:reset": "prisma migrate reset --force && npm run db:seed"
   },
   "dependencies": {
+    "@ai-sdk/openai": "^2.0.38",
+    "@ai-sdk/openai-compatible": "^1.0.19",
     "@auth/prisma-adapter": "^2.10.0",
     "@google/generative-ai": "^0.24.1",
     "@hookform/resolvers": "^5.2.2",
     "@prisma/client": "^6.16.2",
+    "ai": "^5.0.56",
     "bcryptjs": "^3.0.2",
     "framer-motion": "^12.23.13",
     "lucide-react": "^0.544.0",
@@ -24,7 +27,7 @@
     "react-confetti": "^6.4.0",
     "react-dom": "19.1.0",
     "react-hook-form": "^7.62.0",
-    "zod": "^4.1.9"
+    "zod": "^4.1.11"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",

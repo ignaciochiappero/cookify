@@ -1,55 +1,65 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { motion } from 'framer-motion';
-import { 
-  Sparkles, 
-  ChefHat, 
-  Clock, 
-  Users, 
+import { useState } from "react";
+import { motion } from "framer-motion";
+import {
+  Sparkles,
+  ChefHat,
+  Clock,
+  Users,
   Star,
   Plus,
   AlertCircle,
-  Camera
-} from 'lucide-react';
-import { MealType, MEAL_TYPE_LABELS, MEAL_TYPE_ICONS } from '@/types/meal-calendar';
-import { IngredientInventory } from '@/types/inventory';
-import { Recipe } from '@/types/recipe';
-import ImageAnalyzer from './ImageAnalyzer';
-
+  Camera,
+} from "lucide-react";
+import {
+  MealType,
+  MEAL_TYPE_LABELS,
+  MEAL_TYPE_ICONS,
+} from "@/types/meal-calendar";
+import { IngredientInventory } from "@/types/inventory";
+import { Recipe } from "@/types/recipe";
+import ImageAnalyzer from "./ImageAnalyzer";
 
 interface RecipeGeneratorProps {
   inventory: IngredientInventory[];
   onRecipeGenerated: (recipe: Recipe) => void;
 }
 
-export default function RecipeGenerator({ inventory, onRecipeGenerated }: RecipeGeneratorProps) {
+export default function RecipeGenerator({
+  inventory,
+  onRecipeGenerated,
+}: RecipeGeneratorProps) {
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedRecipe, setGeneratedRecipe] = useState<Recipe | null>(null);
-  const [suggestedIngredients, setSuggestedIngredients] = useState<string[]>([]);
+  const [suggestedIngredients, setSuggestedIngredients] = useState<string[]>(
+    []
+  );
   const [formData, setFormData] = useState({
     mealType: MealType.LUNCH,
     servings: 4,
-    suggestIngredients: false
+    suggestIngredients: false,
   });
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const [showImageAnalyzer, setShowImageAnalyzer] = useState(false);
-  
+
   // Asegurar que inventory sea siempre un array
   const safeInventory = Array.isArray(inventory) ? inventory : [];
 
   const handleGenerate = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsGenerating(true);
-    setError('');
+    setError("");
     setGeneratedRecipe(null);
     setSuggestedIngredients([]);
 
     try {
-      const response = await fetch('/api/recipes/generate-from-inventory', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
+      const response = await fetch("/api/recipes/generate-from-inventory", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData),
+        // Timeout más largo para generación de recetas (5 minutos)
+        signal: AbortSignal.timeout(300000),
       });
 
       if (response.ok) {
@@ -59,11 +69,11 @@ export default function RecipeGenerator({ inventory, onRecipeGenerated }: Recipe
         onRecipeGenerated(data.recipe);
       } else {
         const errorData = await response.json();
-        setError(errorData.error || 'Error al generar la receta');
+        setError(errorData.error || "Error al generar la receta");
       }
     } catch (error) {
-      console.error('Error al generar receta:', error);
-      setError('Error de conexión. Por favor, intenta de nuevo.');
+      console.error("Error al generar receta:", error);
+      setError("Error de conexión. Por favor, intenta de nuevo.");
     } finally {
       setIsGenerating(false);
     }
@@ -71,112 +81,145 @@ export default function RecipeGenerator({ inventory, onRecipeGenerated }: Recipe
 
   const handleIngredientsDetected = (ingredients: unknown[]) => {
     // Aquí puedes agregar los ingredientes al inventario
-    console.log('Ingredientes detectados:', ingredients);
+    console.log("Ingredientes detectados:", ingredients);
     // Implementar lógica para agregar al inventario
   };
 
   const handleMealPlanGenerated = async (mealPlan: unknown[]) => {
-    console.log('Plan de comidas generado:', mealPlan);
-    
+    console.log("Plan de comidas generado:", mealPlan);
+
     try {
       // Procesar cada comida individualmente para generar recetas específicas y ricas
       for (const dayPlan of mealPlan) {
-        const day = dayPlan as { date: string; meals: Record<string, { title: string; ingredients?: string[] }> };
+        const day = dayPlan as {
+          date: string;
+          meals: Record<string, { title: string; ingredients?: string[] }>;
+        };
         const date = day.date;
-        
-        const mealTypes = ['breakfast', 'lunch', 'snack', 'dinner'];
-        
+
+        const mealTypes = ["breakfast", "lunch", "snack", "dinner"];
+
         for (const mealType of mealTypes) {
           if (day.meals && day.meals[mealType]) {
             const meal = day.meals[mealType];
-            
+
             try {
-              console.log(`Generando receta específica para ${date} - ${mealType}: ${meal.title}`);
-              
+              console.log(
+                `Generando receta específica para ${date} - ${mealType}: ${meal.title}`
+              );
+
               // Generar receta específica usando solo los ingredientes específicos de esta comida
-              const response = await fetch('/api/recipes/generate-specific', {
-                method: 'POST',
+              const response = await fetch("/api/recipes/generate-specific", {
+                method: "POST",
                 headers: {
-                  'Content-Type': 'application/json',
+                  "Content-Type": "application/json",
                 },
                 body: JSON.stringify({
                   title: meal.title,
                   description: `Receta para ${meal.title} generada automáticamente desde el plan de comidas inteligente`,
                   mealType: mealType.toUpperCase(),
                   servings: 4,
-                  difficulty: 'Fácil',
+                  difficulty: "Fácil",
                   cookingTime: 30,
                   specificIngredients: meal.ingredients || [],
                   preferences: {
                     dietaryRestrictions: [],
-                    cuisineType: 'Internacional',
-                    spiceLevel: 'Medio'
-                  }
+                    cuisineType: "Internacional",
+                    spiceLevel: "Medio",
+                  },
                 }),
+                // Timeout más largo para generación de recetas (5 minutos)
+                signal: AbortSignal.timeout(300000),
               });
 
               if (response.ok) {
                 const responseData = await response.json();
                 const recipe = responseData.recipe;
-                
+
                 if (!recipe || !recipe.id) {
-                  console.error(`No se pudo obtener la receta para ${mealType}:`, responseData);
+                  console.error(
+                    `No se pudo obtener la receta para ${mealType}:`,
+                    responseData
+                  );
                   // Si falla la generación específica, usar la API básica como fallback
                   await createFallbackRecipe(date, mealType, meal);
                   continue;
                 }
 
-                console.log(`✅ Receta específica generada para ${mealType}:`, recipe.title);
+                console.log(
+                  `✅ Receta específica generada para ${mealType}:`,
+                  recipe.title
+                );
 
                 // Crear o actualizar entrada en el calendario
-                await createOrUpdateCalendarEntry(date, mealType, recipe.id, meal.title);
-                
+                await createOrUpdateCalendarEntry(
+                  date,
+                  mealType,
+                  recipe.id,
+                  meal.title
+                );
               } else {
-                console.error(`Error generando receta específica para ${mealType}:`, await response.text());
+                console.error(
+                  `Error generando receta específica para ${mealType}:`,
+                  await response.text()
+                );
                 // Fallback a receta básica
                 await createFallbackRecipe(date, mealType, meal);
               }
             } catch (error) {
-              console.error(`Error procesando ${mealType} para ${date}:`, error);
+              console.error(
+                `Error procesando ${mealType} para ${date}:`,
+                error
+              );
               // Fallback a receta básica
               await createFallbackRecipe(date, mealType, meal);
             }
           }
         }
       }
-      
+
       // Mostrar mensaje de éxito
-      alert('¡Plan de comidas agregado exitosamente al calendario!');
-      
+      alert("¡Plan de comidas agregado exitosamente al calendario!");
     } catch (error) {
-      console.error('Error al agregar plan de comidas al calendario:', error);
-      alert('Error al agregar el plan de comidas al calendario. Por favor, intenta de nuevo.');
+      console.error("Error al agregar plan de comidas al calendario:", error);
+      alert(
+        "Error al agregar el plan de comidas al calendario. Por favor, intenta de nuevo."
+      );
     }
   };
 
   // Función auxiliar para crear receta de fallback
-  const createFallbackRecipe = async (date: string, mealType: string, meal: { title: string; ingredients?: string[] }) => {
+  const createFallbackRecipe = async (
+    date: string,
+    mealType: string,
+    meal: { title: string; ingredients?: string[] }
+  ) => {
     try {
       console.log(`Creando receta de fallback para ${mealType}`);
-      
-      const response = await fetch('/api/recipes/generate-from-inventory', {
-        method: 'POST',
+
+      const response = await fetch("/api/recipes/generate-from-inventory", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           mealType: mealType.toUpperCase(),
           servings: 4,
-          suggestIngredients: true
+          suggestIngredients: true,
         }),
       });
 
       if (response.ok) {
         const responseData = await response.json();
         const recipe = responseData.recipe;
-        
+
         if (recipe && recipe.id) {
-          await createOrUpdateCalendarEntry(date, mealType, recipe.id, meal.title);
+          await createOrUpdateCalendarEntry(
+            date,
+            mealType,
+            recipe.id,
+            meal.title
+          );
         }
       }
     } catch (error) {
@@ -185,86 +228,125 @@ export default function RecipeGenerator({ inventory, onRecipeGenerated }: Recipe
   };
 
   // Función auxiliar para crear o actualizar entrada en calendario
-  const createOrUpdateCalendarEntry = async (date: string, mealType: string, recipeId: string, mealTitle: string) => {
+  const createOrUpdateCalendarEntry = async (
+    date: string,
+    mealType: string,
+    recipeId: string,
+    mealTitle: string
+  ) => {
     try {
-      console.log(`Procesando entrada en calendario para ${date} - ${mealType}`);
-      
+      console.log(
+        `Procesando entrada en calendario para ${date} - ${mealType}`
+      );
+
       // Primero intentar crear una nueva entrada
-      const calendarResponse = await fetch('/api/meal-calendar', {
-        method: 'POST',
+      const calendarResponse = await fetch("/api/meal-calendar", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           date: new Date(date).toISOString(),
           mealType: mealType.toUpperCase(),
           recipeId: recipeId,
-          notes: `Plan generado automáticamente - ${mealTitle}`
+          notes: `Plan generado automáticamente - ${mealTitle}`,
         }),
       });
 
       if (calendarResponse.ok) {
-        console.log(`✅ Entrada creada exitosamente para ${date} - ${mealType}`);
+        console.log(
+          `✅ Entrada creada exitosamente para ${date} - ${mealType}`
+        );
       } else {
         // Si falla porque ya existe, buscar la entrada existente y actualizarla
-        console.log(`Entrada ya existe para ${date} - ${mealType}, actualizando...`);
-        
+        console.log(
+          `Entrada ya existe para ${date} - ${mealType}, actualizando...`
+        );
+
         // Buscar la entrada existente
         const existingMealsResponse = await fetch(
-          `/api/meal-calendar?startDate=${new Date(date).toISOString()}&endDate=${new Date(date).toISOString()}`
+          `/api/meal-calendar?startDate=${new Date(
+            date
+          ).toISOString()}&endDate=${new Date(date).toISOString()}`
         );
-        
+
         if (existingMealsResponse.ok) {
           const existingMeals = await existingMealsResponse.json();
-          const existingMeal = existingMeals.find((m: { date: string; mealType: string; id: string }) => {
-            const mealDate = new Date(m.date);
-            return mealDate.toISOString().split('T')[0] === new Date(date).toISOString().split('T')[0] && 
-                   m.mealType === mealType.toUpperCase();
-          });
+          const existingMeal = existingMeals.find(
+            (m: { date: string; mealType: string; id: string }) => {
+              const mealDate = new Date(m.date);
+              return (
+                mealDate.toISOString().split("T")[0] ===
+                  new Date(date).toISOString().split("T")[0] &&
+                m.mealType === mealType.toUpperCase()
+              );
+            }
+          );
 
           if (existingMeal) {
             // Actualizar la entrada existente
-            const updateResponse = await fetch(`/api/meal-calendar/${existingMeal.id}`, {
-              method: 'PUT',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                recipeId: recipeId,
-                notes: `Plan actualizado automáticamente - ${mealTitle}`
-              }),
-            });
+            const updateResponse = await fetch(
+              `/api/meal-calendar/${existingMeal.id}`,
+              {
+                method: "PUT",
+                headers: {
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                  recipeId: recipeId,
+                  notes: `Plan actualizado automáticamente - ${mealTitle}`,
+                }),
+              }
+            );
 
             if (updateResponse.ok) {
-              console.log(`✅ Entrada actualizada exitosamente para ${date} - ${mealType}`);
+              console.log(
+                `✅ Entrada actualizada exitosamente para ${date} - ${mealType}`
+              );
             } else {
-              console.error(`❌ Error actualizando entrada para ${date} - ${mealType}:`, await updateResponse.text());
+              console.error(
+                `❌ Error actualizando entrada para ${date} - ${mealType}:`,
+                await updateResponse.text()
+              );
             }
           } else {
-            console.error(`❌ No se encontró entrada existente para actualizar ${date} - ${mealType}`);
+            console.error(
+              `❌ No se encontró entrada existente para actualizar ${date} - ${mealType}`
+            );
           }
         }
       }
     } catch (error) {
-      console.error(`Error procesando entrada para ${date} - ${mealType}:`, error);
+      console.error(
+        `Error procesando entrada para ${date} - ${mealType}:`,
+        error
+      );
     }
   };
 
   const getDifficultyColor = (difficulty?: string) => {
     switch (difficulty?.toLowerCase()) {
-      case 'fácil': return 'text-green-600 bg-green-100';
-      case 'medio': return 'text-yellow-600 bg-yellow-100';
-      case 'difícil': return 'text-red-600 bg-red-100';
-      default: return 'text-gray-600 bg-gray-100';
+      case "fácil":
+        return "text-green-600 bg-green-100";
+      case "medio":
+        return "text-yellow-600 bg-yellow-100";
+      case "difícil":
+        return "text-red-600 bg-red-100";
+      default:
+        return "text-gray-600 bg-gray-100";
     }
   };
 
   const getDifficultyIcon = (difficulty?: string) => {
     switch (difficulty?.toLowerCase()) {
-      case 'fácil': return '⭐';
-      case 'medio': return '⭐⭐';
-      case 'difícil': return '⭐⭐⭐';
-      default: return '⭐';
+      case "fácil":
+        return "⭐";
+      case "medio":
+        return "⭐⭐";
+      case "difícil":
+        return "⭐⭐⭐";
+      default:
+        return "⭐";
     }
   };
 
@@ -308,7 +390,8 @@ export default function RecipeGenerator({ inventory, onRecipeGenerated }: Recipe
               Inventario Vacío
             </h3>
             <p className="text-gray-600">
-              Agrega ingredientes a tu inventario para poder generar recetas personalizadas
+              Agrega ingredientes a tu inventario para poder generar recetas
+              personalizadas
             </p>
           </div>
         )}
@@ -329,7 +412,9 @@ export default function RecipeGenerator({ inventory, onRecipeGenerated }: Recipe
           <div className="flex items-center justify-center space-x-2">
             <Camera className="h-5 w-5" />
             <span>
-              {showImageAnalyzer ? 'Ocultar Analizador de Imágenes' : 'Analizar Ingredientes con IA'}
+              {showImageAnalyzer
+                ? "Ocultar Analizador de Imágenes"
+                : "Analizar Ingredientes con IA"}
             </span>
           </div>
         </motion.button>
@@ -352,7 +437,8 @@ export default function RecipeGenerator({ inventory, onRecipeGenerated }: Recipe
           Generador de Recetas con IA
         </h2>
         <p className="text-gray-600">
-          Crea recetas personalizadas basadas en los ingredientes de tu inventario
+          Crea recetas personalizadas basadas en los ingredientes de tu
+          inventario
         </p>
       </div>
 
@@ -366,7 +452,12 @@ export default function RecipeGenerator({ inventory, onRecipeGenerated }: Recipe
               </label>
               <select
                 value={formData.mealType}
-                onChange={(e) => setFormData({ ...formData, mealType: e.target.value as MealType })}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    mealType: e.target.value as MealType,
+                  })
+                }
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
               >
                 {Object.values(MealType).map((mealType) => (
@@ -386,7 +477,12 @@ export default function RecipeGenerator({ inventory, onRecipeGenerated }: Recipe
                 min="1"
                 max="12"
                 value={formData.servings}
-                onChange={(e) => setFormData({ ...formData, servings: parseInt(e.target.value) || 4 })}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    servings: parseInt(e.target.value) || 4,
+                  })
+                }
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
               />
             </div>
@@ -396,10 +492,17 @@ export default function RecipeGenerator({ inventory, onRecipeGenerated }: Recipe
                 <input
                   type="checkbox"
                   checked={formData.suggestIngredients}
-                  onChange={(e) => setFormData({ ...formData, suggestIngredients: e.target.checked })}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      suggestIngredients: e.target.checked,
+                    })
+                  }
                   className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
                 />
-                <span className="text-sm text-gray-700">Sugerir ingredientes</span>
+                <span className="text-sm text-gray-700">
+                  Sugerir ingredientes
+                </span>
               </label>
             </div>
           </div>
@@ -471,15 +574,21 @@ export default function RecipeGenerator({ inventory, onRecipeGenerated }: Recipe
             <div className="grid grid-cols-3 gap-4">
               <div className="flex items-center space-x-2">
                 <Clock className="w-4 h-4" />
-                <span className="text-sm">{generatedRecipe.cookingTime} min</span>
+                <span className="text-sm">
+                  {generatedRecipe.cookingTime} min
+                </span>
               </div>
               <div className="flex items-center space-x-2">
                 <Users className="w-4 h-4" />
-                <span className="text-sm">{generatedRecipe.servings} porciones</span>
+                <span className="text-sm">
+                  {generatedRecipe.servings} porciones
+                </span>
               </div>
               <div className="flex items-center space-x-2">
                 <Star className="w-4 h-4" />
-                <span className="text-sm">{getDifficultyIcon(generatedRecipe.difficulty)}</span>
+                <span className="text-sm">
+                  {getDifficultyIcon(generatedRecipe.difficulty)}
+                </span>
               </div>
             </div>
           </div>
@@ -487,12 +596,18 @@ export default function RecipeGenerator({ inventory, onRecipeGenerated }: Recipe
           {/* Recipe Content */}
           <div className="p-6">
             <div className="flex items-center justify-between mb-4">
-              <h4 className="text-lg font-semibold text-gray-900">Instrucciones</h4>
-              <span className={`px-3 py-1 rounded-full text-sm font-medium ${getDifficultyColor(generatedRecipe.difficulty)}`}>
+              <h4 className="text-lg font-semibold text-gray-900">
+                Instrucciones
+              </h4>
+              <span
+                className={`px-3 py-1 rounded-full text-sm font-medium ${getDifficultyColor(
+                  generatedRecipe.difficulty
+                )}`}
+              >
                 {generatedRecipe.difficulty}
               </span>
             </div>
-            
+
             <div className="prose prose-sm max-w-none">
               <p className="text-gray-800 whitespace-pre-line leading-relaxed">
                 {generatedRecipe.instructions}
@@ -539,7 +654,10 @@ export default function RecipeGenerator({ inventory, onRecipeGenerated }: Recipe
         </h4>
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
           {safeInventory.slice(0, 8).map((item) => (
-            <div key={item.id} className="text-sm text-gray-600 bg-white rounded-lg p-2">
+            <div
+              key={item.id}
+              className="text-sm text-gray-600 bg-white rounded-lg p-2"
+            >
               {item.food.name}
             </div>
           ))}

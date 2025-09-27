@@ -1,26 +1,239 @@
-import { GoogleGenerativeAI, Part } from '@google/generative-ai';
-import { RecipeIngredient, GeneratedRecipe } from '@/types/recipe';
-import { FOOD_UNIT_ABBREVIATIONS } from '@/types/inventory';
-import { FoodUnit as PrismaFoodUnit } from '../generated/prisma';
-import { MealType, MEAL_TYPE_LABELS } from '@/types/meal-calendar';
+import { generateText, generateObject } from "ai";
+import { RecipeIngredient, GeneratedRecipe } from "@/types/recipe";
+import { FOOD_UNIT_ABBREVIATIONS } from "@/types/inventory";
+import { FoodUnit as PrismaFoodUnit } from "../generated/prisma";
+import { MealType, MEAL_TYPE_LABELS } from "@/types/meal-calendar";
+import {
+  model,
+  RecipeSchema,
+  AnalysisSchema,
+  MealPlanSchema,
+} from "./ai-provider";
+
+/**
+ * Función para parsear respuestas del modelo local que pueden venir en formato JSON o Markdown
+ */
+function parseModelResponse(text: string): any {
+  try {
+    // Primero intentar parsear como JSON
+    let cleanText = text
+      .replace(/```json\n?/g, "")
+      .replace(/```\n?/g, "")
+      .trim();
+
+    // Buscar el JSON en la respuesta si no está limpio
+    const jsonMatch = cleanText.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      cleanText = jsonMatch[0];
+    }
+
+    // Intentar parsear como JSON
+    try {
+      return JSON.parse(cleanText);
+    } catch (jsonError) {
+      // Si falla el JSON, parsear como Markdown
+      return parseMarkdownResponse(text);
+    }
+  } catch (error) {
+    console.error("Error parseando respuesta del modelo:", error);
+    throw new Error("Error al procesar la respuesta del modelo");
+  }
+}
+
+/**
+ * Función para parsear respuestas en formato Markdown del modelo local
+ */
+function parseMarkdownResponse(text: string): any {
+  try {
+    console.log(
+      "Parseando respuesta Markdown:",
+      text.substring(0, 200) + "..."
+    );
+
+    // Extraer título (primera línea que empiece con ** o ##)
+    let titleMatch = text.match(/##\s*(.+)/);
+    if (!titleMatch) {
+      titleMatch = text.match(/\*\*(.+?)\*\*/);
+    }
+    const title = titleMatch ? titleMatch[1].trim() : "Receta Generada";
+
+    // Extraer descripción (texto después del título hasta los ingredientes)
+    let descriptionMatch = text.match(
+      /\*\*Descripción:\*\*\s*([\s\S]+?)(?=\*\*|$)/
+    );
+    if (!descriptionMatch) {
+      // Buscar descripción sin formato específico
+      descriptionMatch = text.match(
+        /Descripción:\s*([\s\S]+?)(?=Tiempo|Ingredientes|$)/
+      );
+    }
+    const description = descriptionMatch
+      ? descriptionMatch[1].trim()
+      : "Receta deliciosa generada con IA";
+
+    // Extraer ingredientes
+    let ingredientsMatch = text.match(
+      /\*\*Ingredientes:\*\*\s*([\s\S]*?)(?=\*\*|$)/
+    );
+    if (!ingredientsMatch) {
+      // Buscar ingredientes sin formato específico
+      ingredientsMatch = text.match(
+        /Ingredientes:\s*([\s\S]*?)(?=Instrucciones|$)/
+      );
+    }
+    const ingredientsText = ingredientsMatch ? ingredientsMatch[1] : "";
+
+    // Parsear ingredientes individuales
+    const ingredients = [];
+    const ingredientLines = ingredientsText
+      .split("\n")
+      .filter(
+        (line) => line.trim() && (line.includes("*") || line.includes("•"))
+      );
+
+    for (const line of ingredientLines) {
+      // Manejar diferentes formatos de ingredientes
+      let match = line.match(/\*\s*(.+?):\s*(.+)/);
+      if (!match) {
+        match = line.match(/•\s*(.+?):\s*(.+)/);
+      }
+      if (!match) {
+        match = line.match(/\*\s*(.+)/);
+      }
+      if (!match) {
+        match = line.match(/•\s*(.+)/);
+      }
+
+      if (match) {
+        ingredients.push({
+          name: match[1].trim(),
+          quantity: 1, // Valor por defecto
+          unit: "PIECE",
+        });
+      }
+    }
+
+    // Extraer tiempo de cocción
+    let cookingTimeMatch = text.match(
+      /\*\*Tiempo de Cocción Estimado:\*\*\s*(.+?)(?=\*\*|$)/
+    );
+    if (!cookingTimeMatch) {
+      cookingTimeMatch = text.match(
+        /Tiempo de Cocción Estimado:\s*(.+?)(?=\n|$)/
+      );
+    }
+    const cookingTimeText = cookingTimeMatch
+      ? cookingTimeMatch[1]
+      : "30 minutos";
+    const cookingTime = extractCookingTime(cookingTimeText);
+
+    // Extraer dificultad
+    let difficultyMatch = text.match(
+      /\*\*Nivel de Dificultad:\*\*\s*(.+?)(?=\*\*|$)/
+    );
+    if (!difficultyMatch) {
+      difficultyMatch = text.match(/Nivel de Dificultad:\s*(.+?)(?=\n|$)/);
+    }
+    const difficulty = difficultyMatch ? difficultyMatch[1].trim() : "Fácil";
+
+    // Extraer porciones
+    let servingsMatch = text.match(
+      /\*\*Número de Porciones:\*\*\s*(.+?)(?=\*\*|$)/
+    );
+    if (!servingsMatch) {
+      servingsMatch = text.match(/Número de Porciones:\s*(.+?)(?=\n|$)/);
+    }
+    const servingsText = servingsMatch ? servingsMatch[1] : "4";
+    const servings = extractServings(servingsText);
+
+    // Extraer instrucciones - mejorar el regex para capturar todo el contenido
+    let instructionsMatch = text.match(
+      /\*\*Instrucciones:\*\*\s*([\s\S]*?)(?=\*\*|$)/
+    );
+    if (!instructionsMatch) {
+      instructionsMatch = text.match(/Instrucciones:\s*([\s\S]*?)(?=\*\*|$)/);
+    }
+    if (!instructionsMatch) {
+      // Buscar instrucciones numeradas
+      instructionsMatch = text.match(/(\d+\.\s*[\s\S]*)/);
+    }
+
+    let instructions = instructionsMatch
+      ? instructionsMatch[1].trim()
+      : "Sigue las instrucciones paso a paso.";
+
+    // Limpiar las instrucciones de caracteres extraños
+    instructions = instructions
+      .replace(/\*\*/g, "") // Remover **
+      .replace(/\*/g, "") // Remover *
+      .trim();
+
+    console.log("Datos extraídos:", {
+      title,
+      description: description.substring(0, 100) + "...",
+      instructions: instructions.substring(0, 100) + "...",
+      cookingTime,
+      difficulty,
+      servings,
+      ingredientsCount: ingredients.length,
+    });
+
+    return {
+      title,
+      description,
+      instructions,
+      cookingTime,
+      difficulty,
+      servings,
+      suggestedIngredients: [],
+    };
+  } catch (error) {
+    console.error("Error parseando respuesta Markdown:", error);
+    // Retornar datos por defecto si falla el parsing
+    return {
+      title: "Receta Generada",
+      description: "Receta deliciosa generada con IA",
+      instructions: "Sigue las instrucciones paso a paso.",
+      cookingTime: 30,
+      difficulty: "Fácil",
+      servings: 4,
+      suggestedIngredients: [],
+    };
+  }
+}
+
+/**
+ * Extraer tiempo de cocción de texto
+ */
+function extractCookingTime(text: string): number {
+  const timeMatch = text.match(/(\d+)/);
+  return timeMatch ? parseInt(timeMatch[1]) : 30;
+}
+
+/**
+ * Extraer número de porciones de texto
+ */
+function extractServings(text: string): number {
+  const servingsMatch = text.match(/(\d+)/);
+  return servingsMatch ? parseInt(servingsMatch[1]) : 4;
+}
 
 // Función para convertir imagen a base64 (solo para cliente)
-function fileToGenerativePart(file: File): Promise<Part> {
+function fileToGenerativePart(file: File): Promise<any> {
   return new Promise((resolve, reject) => {
-    if (typeof window === 'undefined') {
-      reject(new Error('FileReader no está disponible en el servidor'));
+    if (typeof window === "undefined") {
+      reject(new Error("FileReader no está disponible en el servidor"));
       return;
     }
-    
+
     const reader = new FileReader();
     reader.onload = () => {
       const base64 = reader.result as string;
       const mimeType = file.type;
       resolve({
-        inlineData: {
-          data: base64.split(',')[1], // Remover el prefijo data:image/...;base64,
-          mimeType
-        }
+        type: "image",
+        image: base64.split(",")[1], // Remover el prefijo data:image/...;base64,
+        mimeType,
       });
     };
     reader.onerror = reject;
@@ -29,16 +242,13 @@ function fileToGenerativePart(file: File): Promise<Part> {
 }
 
 // Función para convertir buffer a base64 (para servidor)
-function bufferToGenerativePart(buffer: Buffer, mimeType: string): Part {
+function bufferToGenerativePart(buffer: Buffer, mimeType: string): any {
   return {
-    inlineData: {
-      data: buffer.toString('base64'),
-      mimeType
-    }
+    type: "image",
+    image: buffer.toString("base64"),
+    mimeType,
   };
 }
-
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 
 export async function generateRecipe(
   ingredients: RecipeIngredient[],
@@ -51,10 +261,8 @@ export async function generateRecipe(
   }
 ): Promise<GeneratedRecipe> {
   try {
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    const ingredientNames = ingredients.map((ing) => ing.name).join(", ");
 
-    const ingredientNames = ingredients.map(ing => ing.name).join(', ');
-    
     let prompt = `Genera una receta completa y detallada usando ÚNICAMENTE estos ingredientes específicos: ${ingredientNames}.
 
 IMPORTANTE: 
@@ -94,51 +302,44 @@ Requisitos:
       if (preferences.servings) {
         prompt += `\n- Número de porciones: ${preferences.servings}`;
       }
-      if (preferences.dietaryRestrictions && preferences.dietaryRestrictions.length > 0) {
-        prompt += `\n- Restricciones dietéticas: ${preferences.dietaryRestrictions.join(', ')}`;
+      if (
+        preferences.dietaryRestrictions &&
+        preferences.dietaryRestrictions.length > 0
+      ) {
+        prompt += `\n- Restricciones dietéticas: ${preferences.dietaryRestrictions.join(
+          ", "
+        )}`;
       }
     }
 
-    prompt += `\n\nResponde en formato JSON con la siguiente estructura:
-{
-  "title": "Título de la receta",
-  "description": "Descripción breve",
-  "instructions": "Instrucciones paso a paso detalladas. Separa cada paso con un salto de línea doble para mejor legibilidad.",
-  "cookingTime": 30,
-  "difficulty": "Fácil",
-  "servings": 4
-}
+    prompt += `\n\nIMPORTANTE: El campo "instructions" debe ser un STRING, no un array. Separa los pasos con \\n\\n para mejor formato.`;
 
-IMPORTANTE: El campo "instructions" debe ser un STRING, no un array. Separa los pasos con \\n\\n para mejor formato.`;
+    // Preparar el contenido para el modelo
+    const content: (string | any)[] = [prompt];
 
-    // Preparar el contenido para Gemini
-    const content: (string | Part)[] = [prompt];
-    
     // Si hay imagen, agregarla al contenido
     if (preferences?.image) {
       try {
         const imagePart = await fileToGenerativePart(preferences.image);
         content.push(imagePart);
       } catch (error) {
-        console.error('Error procesando imagen:', error);
+        console.error("Error procesando imagen:", error);
         // Continuar sin imagen si hay error
       }
     }
 
-    const result = await model.generateContent(content);
-    const response = await result.response;
-    const text = response.text();
+    const result = await generateText({
+      model: model,
+      prompt: prompt,
+    });
 
-    // Limpiar la respuesta (remover markdown si existe)
-    const cleanText = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-    
-    // Parsear el JSON
-    const recipeData = JSON.parse(cleanText);
+    // Parsear la respuesta del modelo local
+    const recipeData = parseModelResponse(result.text);
 
     // Convertir instrucciones de array a string si es necesario
     let instructions = recipeData.instructions;
     if (Array.isArray(instructions)) {
-      instructions = instructions.join('\n\n');
+      instructions = instructions.join("\n\n");
     }
 
     return {
@@ -147,18 +348,19 @@ IMPORTANTE: El campo "instructions" debe ser un STRING, no un array. Separa los 
       instructions: instructions,
       cookingTime: recipeData.cookingTime,
       difficulty: recipeData.difficulty,
-      servings: recipeData.servings
+      servings: recipeData.servings,
     };
-
   } catch (error) {
-    console.error('Error generando receta con Gemini:', error);
-    
+    console.error("Error generando receta con LM Studio:", error);
+
     // Si es error de cuota (429), dar mensaje específico
-    if (error instanceof Error && error.message.includes('429')) {
-      throw new Error('Límite de cuota de API excedido. Por favor, intenta de nuevo más tarde.');
+    if (error instanceof Error && error.message.includes("429")) {
+      throw new Error(
+        "Límite de cuota de API excedido. Por favor, intenta de nuevo más tarde."
+      );
     }
-    
-    throw new Error('Error al generar la receta. Por favor, intenta de nuevo.');
+
+    throw new Error("Error al generar la receta. Por favor, intenta de nuevo.");
   }
 }
 
@@ -185,39 +387,41 @@ export async function generateRecipeWithInventory(
     preferredIngredients?: string[];
   }
 ): Promise<GeneratedRecipeWithInventory> {
-  // Verificar que la API key esté configurada
-  if (!process.env.GEMINI_API_KEY) {
-    throw new Error('GEMINI_API_KEY no está configurada en las variables de entorno');
-  }
-
-  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
-  
   // Extraer opciones
-  const { image, customTitle, customDescription, preferredIngredients } = options || {};
-  
+  const { image, customTitle, customDescription, preferredIngredients } =
+    options || {};
+
   // Sistema de reintentos para manejar sobrecarga de API
   const maxRetries = 3;
   const baseDelay = 2000; // 2 segundos base
-  
+
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
-      console.log(`Intento ${attempt}/${maxRetries} para generar receta de ${mealType}`);
+      console.log(
+        `Intento ${attempt}/${maxRetries} para generar receta de ${mealType}`
+      );
 
       // Formatear inventario con cantidades
-      const inventoryText = inventory.map(item => {
-        const unitAbbr = FOOD_UNIT_ABBREVIATIONS[item.unit];
-        return `${item.name}: ${item.quantity} ${unitAbbr}`;
-      }).join(', ');
+      const inventoryText = inventory
+        .map((item) => {
+          const unitAbbr = FOOD_UNIT_ABBREVIATIONS[item.unit];
+          return `${item.name}: ${item.quantity} ${unitAbbr}`;
+        })
+        .join(", ");
 
       const mealTypeLabel = MEAL_TYPE_LABELS[mealType];
-      
+
       let prompt = `Necesito que me crees una receta para ${mealTypeLabel.toLowerCase()} utilizando estos ingredientes disponibles en mi inventario:
 
 ${inventoryText}
 
-${customTitle ? `TÍTULO SUGERIDO: ${customTitle}` : ''}
-${customDescription ? `DESCRIPCIÓN SUGERIDA: ${customDescription}` : ''}
-${preferredIngredients && preferredIngredients.length > 0 ? `INGREDIENTES PREFERIDOS A INCLUIR: ${preferredIngredients.join(', ')}` : ''}`;
+${customTitle ? `TÍTULO SUGERIDO: ${customTitle}` : ""}
+${customDescription ? `DESCRIPCIÓN SUGERIDA: ${customDescription}` : ""}
+${
+  preferredIngredients && preferredIngredients.length > 0
+    ? `INGREDIENTES PREFERIDOS A INCLUIR: ${preferredIngredients.join(", ")}`
+    : ""
+}`;
 
       // Si hay imagen, agregar análisis de imagen al prompt
       if (image) {
@@ -236,7 +440,11 @@ ${preferredIngredients && preferredIngredients.length > 0 ? `INGREDIENTES PREFER
 
 Requisitos:
 - Usa principalmente los ingredientes disponibles en mi inventario
-${preferredIngredients && preferredIngredients.length > 0 ? '- PRIORIZA especialmente los ingredientes preferidos mencionados arriba' : ''}
+${
+  preferredIngredients && preferredIngredients.length > 0
+    ? "- PRIORIZA especialmente los ingredientes preferidos mencionados arriba"
+    : ""
+}
 - Calcula las cantidades exactas necesarias para la receta
 - Puedes sugerir ingredientes básicos adicionales (sal, aceite, especias comunes) si es necesario
 - Las instrucciones deben ser claras y fáciles de seguir
@@ -252,104 +460,104 @@ ${preferredIngredients && preferredIngredients.length > 0 ? '- PRIORIZA especial
         prompt += `\n- También sugiere ingredientes adicionales que podrían mejorar la receta o crear más variedad`;
       }
 
-      prompt += `\n\nResponde en formato JSON con la siguiente estructura:
-{
-  "title": "Título de la receta",
-  "description": "Descripción breve",
-  "instructions": "Instrucciones paso a paso detalladas. Separa cada paso con un salto de línea doble para mejor legibilidad.",
-  "cookingTime": 30,
-  "difficulty": "Fácil",
-  "servings": 4,
-  "suggestedIngredients": ["ingrediente1", "ingrediente2", "ingrediente3"]
-}
-
-IMPORTANTE: 
+      prompt += `\n\nIMPORTANTE: 
 - El campo "instructions" debe ser un STRING, no un array. Separa los pasos con \\n\\n para mejor formato.
 - El campo "suggestedIngredients" debe ser un array de strings con ingredientes adicionales sugeridos.`;
 
-      // Preparar el contenido para Gemini
-      const content: (string | Part)[] = [prompt];
-      
+      // Preparar el contenido para el modelo
+      const content: (string | any)[] = [prompt];
+
       // Si hay imagen, agregarla al contenido
       if (image) {
         try {
           const imagePart = await fileToGenerativePart(image);
           content.push(imagePart);
         } catch (error) {
-          console.error('Error procesando imagen:', error);
+          console.error("Error procesando imagen:", error);
           // Continuar sin imagen si hay error
         }
       }
 
-      const result = await model.generateContent(content);
-      const response = await result.response;
-      const text = response.text();
+      const result = await generateText({
+        model: model,
+        prompt: prompt,
+      });
 
-      // Limpiar la respuesta (remover markdown si existe)
-      const cleanText = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-      
-      // Parsear el JSON
-      const recipeData = JSON.parse(cleanText);
+      // Parsear la respuesta del modelo local
+      const recipeData = parseModelResponse(result.text);
 
       // Convertir instrucciones de array a string si es necesario
       let instructions = recipeData.instructions;
       if (Array.isArray(instructions)) {
-        instructions = instructions.join('\n\n');
+        instructions = instructions.join("\n\n");
       }
 
-      console.log(`✅ Receta generada exitosamente en intento ${attempt} para ${mealType}`);
+      console.log(
+        `✅ Receta generada exitosamente en intento ${attempt} para ${mealType}`
+      );
       return {
         title: recipeData.title,
         description: recipeData.description,
         instructions: instructions,
-        cookingTime: recipeData.cookingTime,
-        difficulty: recipeData.difficulty,
-        servings: recipeData.servings,
-        suggestedIngredients: recipeData.suggestedIngredients || []
+        cookingTime: recipeData.cookingTime || 30, // Valor por defecto si es undefined
+        difficulty: recipeData.difficulty || "Fácil", // Valor por defecto si es undefined
+        servings: recipeData.servings || 4, // Valor por defecto si es undefined
+        suggestedIngredients: recipeData.suggestedIngredients || [],
       };
-
     } catch (error) {
-      console.error(`❌ Error en intento ${attempt}/${maxRetries} para ${mealType}:`, error);
-      
+      console.error(
+        `❌ Error en intento ${attempt}/${maxRetries} para ${mealType}:`,
+        error
+      );
+
       // Verificar si es un error de sobrecarga (503) o rate limiting
-      const isOverloadError = error instanceof Error && 
-        (error.message.includes('503') || 
-         error.message.includes('overloaded') || 
-         error.message.includes('Service Unavailable') ||
-         error.message.includes('rate limit'));
-      
+      const isOverloadError =
+        error instanceof Error &&
+        (error.message.includes("503") ||
+          error.message.includes("overloaded") ||
+          error.message.includes("Service Unavailable") ||
+          error.message.includes("rate limit"));
+
       // Si es el último intento o no es un error de sobrecarga, lanzar el error
       if (attempt === maxRetries || !isOverloadError) {
         // Log más detallado del error
         if (error instanceof Error) {
-          console.error('Gemini error message:', error.message);
-          console.error('Gemini error stack:', error.stack);
+          console.error("LM Studio error message:", error.message);
+          console.error("LM Studio error stack:", error.stack);
         }
-        
-        // Verificar si es un error de API key
-        if (error instanceof Error && error.message.includes('API_KEY')) {
-          throw new Error('Error de configuración de API. Verifica la clave de Gemini.');
+
+        // Verificar si es un error de conexión
+        if (
+          error instanceof Error &&
+          (error.message.includes("fetch") || error.message.includes("network"))
+        ) {
+          throw new Error(
+            "Error de conexión. Verifica que LM Studio esté ejecutándose en http://127.0.0.1:1234"
+          );
         }
-        
-        // Verificar si es un error de red
-        if (error instanceof Error && (error.message.includes('fetch') || error.message.includes('network'))) {
-          throw new Error('Error de conexión. Verifica tu conexión a internet.');
-        }
-        
-        throw new Error(`Error al generar la receta: ${error instanceof Error ? error.message : 'Error desconocido'}`);
+
+        throw new Error(
+          `Error al generar la receta: ${
+            error instanceof Error ? error.message : "Error desconocido"
+          }`
+        );
       }
-      
+
       // Si es un error de sobrecarga y no es el último intento, esperar y reintentar
       if (isOverloadError) {
         const delay = baseDelay * Math.pow(2, attempt - 1); // Backoff exponencial
-        console.log(`⏳ API sobrecargada. Esperando ${delay}ms antes del siguiente intento...`);
-        await new Promise(resolve => setTimeout(resolve, delay));
+        console.log(
+          `⏳ API sobrecargada. Esperando ${delay}ms antes del siguiente intento...`
+        );
+        await new Promise((resolve) => setTimeout(resolve, delay));
       }
     }
   }
-  
+
   // Si llegamos aquí, todos los intentos fallaron
-  throw new Error(`No se pudo generar la receta después de ${maxRetries} intentos. La API de Gemini está sobrecargada.`);
+  throw new Error(
+    `No se pudo generar la receta después de ${maxRetries} intentos. El modelo local está sobrecargado.`
+  );
 }
 
 // Nueva interfaz para ingredientes detectados
@@ -398,17 +606,13 @@ export async function analyzeIngredientImage(
   missingIngredients: DetectedIngredient[];
   suggestions: string[];
 }> {
-  if (!process.env.GEMINI_API_KEY) {
-    throw new Error('GEMINI_API_KEY no está configurada en las variables de entorno');
-  }
-
-  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
-  
   // Formatear inventario actual
-  const inventoryText = currentInventory.map(item => {
-    const unitAbbr = FOOD_UNIT_ABBREVIATIONS[item.unit];
-    return `${item.name}: ${item.quantity} ${unitAbbr}`;
-  }).join(', ');
+  const inventoryText = currentInventory
+    .map((item) => {
+      const unitAbbr = FOOD_UNIT_ABBREVIATIONS[item.unit];
+      return `${item.name}: ${item.quantity} ${unitAbbr}`;
+    })
+    .join(", ");
 
   const prompt = `Analiza esta imagen de ingredientes/alimentos y compara con el inventario actual del usuario.
 
@@ -459,52 +663,51 @@ REGLAS:
 - Responde en español`;
 
   try {
-    let imagePart: Part;
-    
-    // Siempre usar buffer en el servidor (API routes)
-    if (typeof window === 'undefined' || image instanceof Buffer) {
-      // En el servidor, usar buffer
-      const buffer = image instanceof Buffer ? image : Buffer.from(await (image as File).arrayBuffer());
-      imagePart = bufferToGenerativePart(buffer, mimeType || 'image/jpeg');
-    } else {
-      // En el cliente, usar File
-      imagePart = await fileToGenerativePart(image as File);
-    }
-    
-    const result = await model.generateContent([prompt, imagePart]);
-    const response = await result.response;
-    const text = response.text();
+    // Preparar el contenido para el modelo
+    const content: (string | any)[] = [prompt];
 
-    // Limpiar la respuesta
-    let cleanText = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-    
-    // Buscar el JSON en la respuesta si no está limpio
-    const jsonMatch = cleanText.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      cleanText = jsonMatch[0];
+    // Agregar imagen si está disponible
+    if (image) {
+      try {
+        let imagePart;
+        if (typeof window === "undefined" || image instanceof Buffer) {
+          // En el servidor, usar buffer
+          const buffer =
+            image instanceof Buffer
+              ? image
+              : Buffer.from(await (image as File).arrayBuffer());
+          imagePart = bufferToGenerativePart(buffer, mimeType || "image/jpeg");
+        } else {
+          // En el cliente, usar File
+          imagePart = await fileToGenerativePart(image as File);
+        }
+        content.push(imagePart);
+      } catch (error) {
+        console.error("Error procesando imagen:", error);
+        // Continuar sin imagen si hay error
+      }
     }
-    
-    console.log('Respuesta de Gemini:', cleanText);
-    
-    // Parsear el JSON
-    let analysisData;
-    try {
-      analysisData = JSON.parse(cleanText);
-    } catch (parseError) {
-      console.error('Error parseando JSON:', parseError);
-      console.error('Texto recibido:', cleanText);
-      throw new Error('La respuesta de la IA no está en formato JSON válido');
-    }
+
+    const result = await generateText({
+      model: model,
+      prompt: prompt,
+    });
+
+    // Parsear la respuesta del modelo local
+    const analysisData = parseModelResponse(result.text);
+
+    console.log("Respuesta de LM Studio:", analysisData);
 
     return {
       detectedIngredients: analysisData.detectedIngredients || [],
       missingIngredients: analysisData.missingIngredients || [],
-      suggestions: analysisData.suggestions || []
+      suggestions: analysisData.suggestions || [],
     };
-
   } catch (error) {
-    console.error('Error analizando imagen:', error);
-    throw new Error('Error al analizar la imagen. Por favor, intenta de nuevo.');
+    console.error("Error analizando imagen:", error);
+    throw new Error(
+      "Error al analizar la imagen. Por favor, intenta de nuevo."
+    );
   }
 }
 
@@ -514,68 +717,33 @@ export async function generateMealPlan(
   days: number,
   startDate: Date
 ): Promise<MealPlan[]> {
-  if (!process.env.GEMINI_API_KEY) {
-    throw new Error('GEMINI_API_KEY no está configurada en las variables de entorno');
-  }
-
-  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
-  
   // Formatear inventario
-  const inventoryText = inventory.map(item => {
-    const unitAbbr = FOOD_UNIT_ABBREVIATIONS[item.unit];
-    return `${item.name}: ${item.quantity} ${unitAbbr}`;
-  }).join(', ');
+  const inventoryText = inventory
+    .map((item) => {
+      const unitAbbr = FOOD_UNIT_ABBREVIATIONS[item.unit];
+      return `${item.name}: ${item.quantity} ${unitAbbr}`;
+    })
+    .join(", ");
 
   // Generar fechas
   const dates = [];
   for (let i = 0; i < days; i++) {
     const date = new Date(startDate);
     date.setDate(startDate.getDate() + i);
-    dates.push(date.toISOString().split('T')[0]);
+    dates.push(date.toISOString().split("T")[0]);
   }
 
   const prompt = `Genera un plan de comidas para ${days} días usando estos ingredientes disponibles:
 
 INVENTARIO: ${inventoryText}
 
-FECHAS: ${dates.join(', ')}
+FECHAS: ${dates.join(", ")}
 
 Por favor, crea un plan de comidas que incluya:
 - Desayuno, almuerzo, merienda y cena para cada día
 - Recetas que usen principalmente los ingredientes disponibles
 - Variedad en los platos a lo largo de los días
 - Considera el balance nutricional
-
-IMPORTANTE: Responde en formato JSON con la siguiente estructura exacta:
-{
-  "mealPlan": [
-    {
-      "date": "2024-01-15",
-      "meals": {
-        "breakfast": {
-          "recipeId": "uuid-generado",
-          "title": "Título de la receta",
-          "ingredients": ["nombre-ingrediente-específico-1", "nombre-ingrediente-específico-2"]
-        },
-        "lunch": {
-          "recipeId": "uuid-generado",
-          "title": "Título de la receta",
-          "ingredients": ["nombre-ingrediente-específico-1", "nombre-ingrediente-específico-2"]
-        },
-        "snack": {
-          "recipeId": "uuid-generado",
-          "title": "Título de la receta",
-          "ingredients": ["nombre-ingrediente-específico-1"]
-        },
-        "dinner": {
-          "recipeId": "uuid-generado",
-          "title": "Título de la receta",
-          "ingredients": ["nombre-ingrediente-específico-1", "nombre-ingrediente-específico-2"]
-        }
-      }
-    }
-  ]
-}
 
 REGLAS:
 - Genera un UUID único para cada recipeId
@@ -590,31 +758,24 @@ REGLAS:
 IMPORTANTE: Responde solo con el JSON, sin texto adicional antes o después.`;
 
   try {
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const text = response.text();
+    const result = await generateText({
+      model: model,
+      prompt: prompt,
+    });
 
-    console.log('Respuesta de Gemini para plan de comidas:', text);
+    // Parsear la respuesta del modelo local
+    const planData = parseModelResponse(result.text);
 
-    // Limpiar la respuesta y extraer JSON
-    let cleanText = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-    
-    // Buscar el JSON en la respuesta usando regex
-    const jsonMatch = cleanText.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      cleanText = jsonMatch[0];
-    }
-    
-    // Parsear el JSON
-    const planData = JSON.parse(cleanText);
+    console.log("Respuesta de LM Studio para plan de comidas:", planData);
 
     return planData.mealPlan || [];
-
   } catch (error) {
-    console.error('Error generando plan de comidas:', error);
+    console.error("Error generando plan de comidas:", error);
     if (error instanceof SyntaxError) {
-      console.error('Error de parsing JSON:', error.message);
+      console.error("Error de parsing JSON:", error.message);
     }
-    throw new Error('Error al generar el plan de comidas. Por favor, intenta de nuevo.');
+    throw new Error(
+      "Error al generar el plan de comidas. Por favor, intenta de nuevo."
+    );
   }
 }

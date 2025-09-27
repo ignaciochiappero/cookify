@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
-import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { Camera, Upload, CheckCircle, Plus, Trash2 } from 'lucide-react';
+import React, { useState, useEffect } from "react";
+import { motion } from "framer-motion";
+import { Camera, Upload, CheckCircle, Plus, Trash2 } from "lucide-react";
 
 interface DetectedIngredient {
   name: string;
@@ -39,22 +39,30 @@ interface InventoryItem {
   category?: string;
 }
 
-export default function ImageAnalyzer({ 
-  onIngredientsDetected, 
+export default function ImageAnalyzer({
+  onIngredientsDetected,
   onMealPlanGenerated,
-  currentInventory 
+  currentInventory,
 }: ImageAnalyzerProps) {
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isGeneratingPlan, setIsGeneratingPlan] = useState(false);
-  const [error, setError] = useState('');
-  const [detectedIngredients, setDetectedIngredients] = useState<DetectedIngredient[]>([]);
-  const [missingIngredients, setMissingIngredients] = useState<DetectedIngredient[]>([]);
+  const [error, setError] = useState("");
+  const [detectedIngredients, setDetectedIngredients] = useState<
+    DetectedIngredient[]
+  >([]);
+  const [missingIngredients, setMissingIngredients] = useState<
+    DetectedIngredient[]
+  >([]);
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [planningDays, setPlanningDays] = useState(3);
   const [showIngredientReview, setShowIngredientReview] = useState(false);
-  const [editingIngredient, setEditingIngredient] = useState<number | null>(null);
-  const [newIngredient, setNewIngredient] = useState<Partial<DetectedIngredient>>({});
+  const [editingIngredient, setEditingIngredient] = useState<number | null>(
+    null
+  );
+  const [newIngredient, setNewIngredient] = useState<
+    Partial<DetectedIngredient>
+  >({});
   const [availableFoods, setAvailableFoods] = useState<Food[]>([]);
   const [isAddingToInventory, setIsAddingToInventory] = useState(false);
   const [ingredientsAdded, setIngredientsAdded] = useState(false);
@@ -66,42 +74,44 @@ export default function ImageAnalyzer({
 
   const fetchAvailableFoods = async () => {
     try {
-      const response = await fetch('/api/food');
+      const response = await fetch("/api/food");
       const result = await response.json();
       if (result.success) {
         setAvailableFoods(result.data || []);
       }
     } catch (error) {
-      console.error('Error al cargar alimentos:', error);
+      console.error("Error al cargar alimentos:", error);
     }
   };
 
   const findMatchingFood = (ingredientName: string): Food | null => {
     const normalizedName = ingredientName.toLowerCase().trim();
-    
+
     // Buscar coincidencia exacta
-    let match = availableFoods.find(food => 
-      food.name.toLowerCase() === normalizedName
+    let match = availableFoods.find(
+      (food) => food.name.toLowerCase() === normalizedName
     );
-    
+
     if (match) return match;
-    
+
     // Buscar coincidencia parcial
-    match = availableFoods.find(food => 
-      food.name.toLowerCase().includes(normalizedName) ||
-      normalizedName.includes(food.name.toLowerCase())
+    match = availableFoods.find(
+      (food) =>
+        food.name.toLowerCase().includes(normalizedName) ||
+        normalizedName.includes(food.name.toLowerCase())
     );
-    
+
     if (match) return match;
-    
+
     // Buscar por palabras clave
-    const keywords = normalizedName.split(' ');
-    match = availableFoods.find(food => 
-      keywords.some(keyword => 
-        food.name.toLowerCase().includes(keyword) && keyword.length > 2
+    const keywords = normalizedName.split(" ");
+    match = availableFoods.find((food) =>
+      keywords.some(
+        (keyword) =>
+          food.name.toLowerCase().includes(keyword) && keyword.length > 2
       )
     );
-    
+
     return match || null;
   };
 
@@ -109,30 +119,32 @@ export default function ImageAnalyzer({
     setIsAddingToInventory(true);
     try {
       if (missingIngredients.length === 0) {
-        setError('No hay ingredientes seleccionados para agregar al inventario');
+        setError(
+          "No hay ingredientes seleccionados para agregar al inventario"
+        );
         setIsAddingToInventory(false);
         return;
       }
-      
+
       const promises = missingIngredients.map(async (ingredient) => {
         const matchingFood = findMatchingFood(ingredient.name);
-        
+
         if (matchingFood) {
-          const response = await fetch('/api/inventory', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+          const response = await fetch("/api/inventory", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               foodId: matchingFood.id,
               quantity: ingredient.quantity,
               unit: ingredient.unit,
-              notes: `Agregado desde análisis de imagen - ${ingredient.name}`
-            })
+              notes: `Agregado desde análisis de imagen - ${ingredient.name}`,
+            }),
           });
-          
+
           if (!response.ok) {
             throw new Error(`Error al agregar ${ingredient.name}`);
           }
-          
+
           return response.json();
         } else {
           console.warn(`No se encontró coincidencia para: ${ingredient.name}`);
@@ -141,19 +153,18 @@ export default function ImageAnalyzer({
       });
 
       await Promise.all(promises);
-      
+
       // Notificar al componente padre que se agregaron ingredientes
       onIngredientsDetected(missingIngredients);
-      
+
       // Marcar que los ingredientes fueron agregados
       setIngredientsAdded(true);
-      
+
       // Limpiar la lista de ingredientes faltantes
       setMissingIngredients([]);
-      
     } catch (error) {
-      console.error('Error al agregar ingredientes al inventario:', error);
-      setError('Error al agregar algunos ingredientes al inventario');
+      console.error("Error al agregar ingredientes al inventario:", error);
+      setError("Error al agregar algunos ingredientes al inventario");
     } finally {
       setIsAddingToInventory(false);
     }
@@ -163,19 +174,19 @@ export default function ImageAnalyzer({
     const file = e.target.files?.[0];
     if (file) {
       // Validar tipo de archivo
-      if (!file.type.startsWith('image/')) {
-        setError('Por favor selecciona un archivo de imagen válido');
+      if (!file.type.startsWith("image/")) {
+        setError("Por favor selecciona un archivo de imagen válido");
         return;
       }
 
       // Validar tamaño (5MB máximo)
       if (file.size > 5 * 1024 * 1024) {
-        setError('La imagen debe ser menor a 5MB');
+        setError("La imagen debe ser menor a 5MB");
         return;
       }
 
       setSelectedImage(file);
-      setError('');
+      setError("");
     }
   };
 
@@ -183,44 +194,49 @@ export default function ImageAnalyzer({
     if (!selectedImage) return;
 
     setIsAnalyzing(true);
-    setError('');
+    setError("");
 
     try {
       const formData = new FormData();
-      formData.append('image', selectedImage);
-      formData.append('inventory', JSON.stringify(currentInventory));
+      formData.append("image", selectedImage);
+      formData.append("inventory", JSON.stringify(currentInventory));
 
-      const response = await fetch('/api/analyze-ingredients', {
-        method: 'POST',
+      const response = await fetch("/api/analyze-ingredients", {
+        method: "POST",
         body: formData,
-        // Timeout más largo para análisis de imágenes (60 segundos)
-        signal: AbortSignal.timeout(60000),
+        // Timeout más largo para análisis de imágenes (5 minutos)
+        signal: AbortSignal.timeout(300000),
       });
 
       if (!response.ok) {
-        throw new Error('Error al analizar la imagen');
+        throw new Error("Error al analizar la imagen");
       }
 
       const data = await response.json();
-      
+
       setDetectedIngredients(data.detectedIngredients || []);
       setMissingIngredients(data.missingIngredients || []);
       setSuggestions(data.suggestions || []);
       setShowIngredientReview(true);
-
     } catch (error) {
-      console.error('Error:', error);
-      
+      console.error("Error:", error);
+
       if (error instanceof Error) {
-        if (error.name === 'TimeoutError') {
-          setError('El análisis está tardando más de lo esperado. Por favor, intenta con una imagen más pequeña o intenta de nuevo.');
-        } else if (error.message.includes('JSON')) {
-          setError('Error procesando la respuesta de la IA. Por favor, intenta de nuevo.');
+        if (error.name === "TimeoutError") {
+          setError(
+            "El análisis está tardando más de 5 minutos. Por favor, intenta con una imagen más pequeña o verifica que LM Studio esté funcionando correctamente."
+          );
+        } else if (error.message.includes("JSON")) {
+          setError(
+            "Error procesando la respuesta de la IA. Por favor, intenta de nuevo."
+          );
         } else {
           setError(`Error al analizar la imagen: ${error.message}`);
         }
       } else {
-        setError('Error inesperado al analizar la imagen. Por favor, intenta de nuevo.');
+        setError(
+          "Error inesperado al analizar la imagen. Por favor, intenta de nuevo."
+        );
       }
     } finally {
       setIsAnalyzing(false);
@@ -229,65 +245,82 @@ export default function ImageAnalyzer({
 
   const generateMealPlan = async () => {
     setIsGeneratingPlan(true);
-    setError('');
+    setError("");
 
     try {
       // Convertir currentInventory al formato correcto
-      const formattedCurrentInventory = (currentInventory as InventoryItem[]).map((item) => ({
-        name: item.food?.name || item.name || 'Ingrediente',
+      const formattedCurrentInventory = (
+        currentInventory as InventoryItem[]
+      ).map((item) => ({
+        name: item.food?.name || item.name || "Ingrediente",
         quantity: item.quantity || 1,
-        unit: item.unit || 'PIECE',
-        category: item.food?.category || item.category || 'OTHER'
+        unit: item.unit || "PIECE",
+        category: item.food?.category || item.category || "OTHER",
       }));
 
       // Convertir missingIngredients al formato correcto
-      const formattedMissingIngredients = missingIngredients.map(item => ({
+      const formattedMissingIngredients = missingIngredients.map((item) => ({
         name: item.name,
         quantity: item.quantity,
         unit: item.unit,
-        category: item.category
+        category: item.category,
       }));
 
       // Combinar inventario actual con ingredientes detectados
-      const combinedInventory = [...formattedCurrentInventory, ...formattedMissingIngredients];
-      
-      console.log('Inventario combinado para plan de comidas:', combinedInventory);
-      
+      const combinedInventory = [
+        ...formattedCurrentInventory,
+        ...formattedMissingIngredients,
+      ];
+
+      console.log(
+        "Inventario combinado para plan de comidas:",
+        combinedInventory
+      );
+
       if (combinedInventory.length === 0) {
-        setError('No hay ingredientes disponibles para generar un plan de comidas');
+        setError(
+          "No hay ingredientes disponibles para generar un plan de comidas"
+        );
         return;
       }
 
-      const response = await fetch('/api/generate-meal-plan', {
-        method: 'POST',
+      const response = await fetch("/api/generate-meal-plan", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           inventory: combinedInventory,
           days: planningDays,
-          startDate: new Date().toISOString().split('T')[0]
+          startDate: new Date().toISOString().split("T")[0],
         }),
       });
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        console.error('Error response:', response.status, errorData);
-        throw new Error(`Error al generar el plan de comidas: ${errorData.error || response.statusText}`);
+        console.error("Error response:", response.status, errorData);
+        throw new Error(
+          `Error al generar el plan de comidas: ${
+            errorData.error || response.statusText
+          }`
+        );
       }
 
       const data = await response.json();
-      console.log('Plan de comidas generado exitosamente:', data);
+      console.log("Plan de comidas generado exitosamente:", data);
       onMealPlanGenerated(data.mealPlan);
-
     } catch (error) {
-      console.error('Error:', error);
-      
+      console.error("Error:", error);
+
       // Mostrar mensaje específico para error de cuota
-      if (error instanceof Error && error.message.includes('cuota')) {
-        setError('Límite de cuota de API excedido. Por favor, intenta de nuevo mañana o considera actualizar tu plan de API.');
+      if (error instanceof Error && error.message.includes("cuota")) {
+        setError(
+          "Límite de cuota de API excedido. Por favor, intenta de nuevo mañana o considera actualizar tu plan de API."
+        );
       } else {
-        setError('Error al generar el plan de comidas. Por favor, intenta de nuevo.');
+        setError(
+          "Error al generar el plan de comidas. Por favor, intenta de nuevo."
+        );
       }
     } finally {
       setIsGeneratingPlan(false);
@@ -310,13 +343,18 @@ export default function ImageAnalyzer({
   };
 
   const addNewIngredient = () => {
-    if (newIngredient.name && newIngredient.quantity && newIngredient.unit && newIngredient.category) {
+    if (
+      newIngredient.name &&
+      newIngredient.quantity &&
+      newIngredient.unit &&
+      newIngredient.category
+    ) {
       const ingredient: DetectedIngredient = {
         name: newIngredient.name,
         quantity: newIngredient.quantity,
         unit: newIngredient.unit,
         category: newIngredient.category,
-        confidence: 1.0
+        confidence: 1.0,
       };
       setMissingIngredients([...missingIngredients, ingredient]);
       setNewIngredient({});
@@ -331,7 +369,11 @@ export default function ImageAnalyzer({
     setEditingIngredient(null);
   };
 
-  const editDetectedIngredient = (index: number, field: string, value: unknown) => {
+  const editDetectedIngredient = (
+    index: number,
+    field: string,
+    value: unknown
+  ) => {
     const updated = [...detectedIngredients];
     updated[index] = { ...updated[index], [field]: value };
     setDetectedIngredients(updated);
@@ -355,7 +397,8 @@ export default function ImageAnalyzer({
           🖼️ Análisis Inteligente de Ingredientes
         </h3>
         <p className="text-gray-600">
-          Sube una foto de tus ingredientes y la IA los analizará automáticamente
+          Sube una foto de tus ingredientes y la IA los analizará
+          automáticamente
         </p>
       </div>
 
@@ -418,7 +461,8 @@ export default function ImageAnalyzer({
                   <span>Analizando imagen con IA...</span>
                 </div>
                 <p className="text-xs text-blue-100">
-                  Esto puede tardar 30-60 segundos dependiendo del tamaño de la imagen
+                  Esto puede tardar 1-5 minutos dependiendo del tamaño de la
+                  imagen y la carga del modelo
                 </p>
               </div>
             ) : (
@@ -438,7 +482,10 @@ export default function ImageAnalyzer({
             </h4>
             <div className="space-y-3">
               {detectedIngredients.map((ingredient, index) => (
-                <div key={index} className="bg-white rounded-lg p-4 border border-green-200">
+                <div
+                  key={index}
+                  className="bg-white rounded-lg p-4 border border-green-200"
+                >
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                     <div>
                       <label className="block text-xs font-medium text-gray-700 mb-1">
@@ -447,7 +494,9 @@ export default function ImageAnalyzer({
                       <input
                         type="text"
                         value={ingredient.name}
-                        onChange={(e) => editDetectedIngredient(index, 'name', e.target.value)}
+                        onChange={(e) =>
+                          editDetectedIngredient(index, "name", e.target.value)
+                        }
                         className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
                       />
                     </div>
@@ -457,7 +506,13 @@ export default function ImageAnalyzer({
                       </label>
                       <div className="flex items-center space-x-2">
                         <button
-                          onClick={() => editDetectedIngredient(index, 'quantity', Math.max(0, ingredient.quantity - 0.1))}
+                          onClick={() =>
+                            editDetectedIngredient(
+                              index,
+                              "quantity",
+                              Math.max(0, ingredient.quantity - 0.1)
+                            )
+                          }
                           className="bg-gray-200 hover:bg-gray-300 text-gray-700 w-8 h-8 rounded-md flex items-center justify-center text-sm font-bold"
                         >
                           -
@@ -465,13 +520,25 @@ export default function ImageAnalyzer({
                         <input
                           type="number"
                           value={ingredient.quantity}
-                          onChange={(e) => editDetectedIngredient(index, 'quantity', parseFloat(e.target.value) || 0)}
+                          onChange={(e) =>
+                            editDetectedIngredient(
+                              index,
+                              "quantity",
+                              parseFloat(e.target.value) || 0
+                            )
+                          }
                           className="w-16 px-2 py-1 border border-gray-300 rounded-md text-sm text-center"
                           min="0"
                           step="0.1"
                         />
                         <button
-                          onClick={() => editDetectedIngredient(index, 'quantity', ingredient.quantity + 0.1)}
+                          onClick={() =>
+                            editDetectedIngredient(
+                              index,
+                              "quantity",
+                              ingredient.quantity + 0.1
+                            )
+                          }
                           className="bg-gray-200 hover:bg-gray-300 text-gray-700 w-8 h-8 rounded-md flex items-center justify-center text-sm font-bold"
                         >
                           +
@@ -484,7 +551,9 @@ export default function ImageAnalyzer({
                       </label>
                       <select
                         value={ingredient.unit}
-                        onChange={(e) => editDetectedIngredient(index, 'unit', e.target.value)}
+                        onChange={(e) =>
+                          editDetectedIngredient(index, "unit", e.target.value)
+                        }
                         className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
                       >
                         <option value="PIECE">Pieza</option>
@@ -518,7 +587,10 @@ export default function ImageAnalyzer({
             <div className="mt-4">
               <button
                 onClick={() => {
-                  setMissingIngredients([...missingIngredients, ...detectedIngredients]);
+                  setMissingIngredients([
+                    ...missingIngredients,
+                    ...detectedIngredients,
+                  ]);
                   setDetectedIngredients([]);
                 }}
                 disabled={detectedIngredients.length === 0}
@@ -536,7 +608,10 @@ export default function ImageAnalyzer({
             </h4>
             <div className="space-y-3">
               {missingIngredients.map((ingredient, index) => (
-                <div key={index} className="bg-white rounded-lg p-4 border border-blue-200">
+                <div
+                  key={index}
+                  className="bg-white rounded-lg p-4 border border-blue-200"
+                >
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                     <div>
                       <label className="block text-xs font-medium text-gray-700 mb-1">
@@ -545,7 +620,9 @@ export default function ImageAnalyzer({
                       <input
                         type="text"
                         value={ingredient.name}
-                        onChange={(e) => editIngredient(index, 'name', e.target.value)}
+                        onChange={(e) =>
+                          editIngredient(index, "name", e.target.value)
+                        }
                         className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
                       />
                     </div>
@@ -555,7 +632,13 @@ export default function ImageAnalyzer({
                       </label>
                       <div className="flex items-center space-x-2">
                         <button
-                          onClick={() => editIngredient(index, 'quantity', Math.max(0, ingredient.quantity - 0.1))}
+                          onClick={() =>
+                            editIngredient(
+                              index,
+                              "quantity",
+                              Math.max(0, ingredient.quantity - 0.1)
+                            )
+                          }
                           className="bg-gray-200 hover:bg-gray-300 text-gray-700 w-8 h-8 rounded-md flex items-center justify-center text-sm font-bold"
                         >
                           -
@@ -563,13 +646,25 @@ export default function ImageAnalyzer({
                         <input
                           type="number"
                           value={ingredient.quantity}
-                          onChange={(e) => editIngredient(index, 'quantity', parseFloat(e.target.value) || 0)}
+                          onChange={(e) =>
+                            editIngredient(
+                              index,
+                              "quantity",
+                              parseFloat(e.target.value) || 0
+                            )
+                          }
                           className="w-16 px-2 py-1 border border-gray-300 rounded-md text-sm text-center"
                           min="0"
                           step="0.1"
                         />
                         <button
-                          onClick={() => editIngredient(index, 'quantity', ingredient.quantity + 0.1)}
+                          onClick={() =>
+                            editIngredient(
+                              index,
+                              "quantity",
+                              ingredient.quantity + 0.1
+                            )
+                          }
                           className="bg-gray-200 hover:bg-gray-300 text-gray-700 w-8 h-8 rounded-md flex items-center justify-center text-sm font-bold"
                         >
                           +
@@ -582,7 +677,9 @@ export default function ImageAnalyzer({
                       </label>
                       <select
                         value={ingredient.unit}
-                        onChange={(e) => editIngredient(index, 'unit', e.target.value)}
+                        onChange={(e) =>
+                          editIngredient(index, "unit", e.target.value)
+                        }
                         className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
                       >
                         <option value="PIECE">Pieza</option>
@@ -601,7 +698,9 @@ export default function ImageAnalyzer({
                       </label>
                       <select
                         value={ingredient.category}
-                        onChange={(e) => editIngredient(index, 'category', e.target.value)}
+                        onChange={(e) =>
+                          editIngredient(index, "category", e.target.value)
+                        }
                         className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
                       >
                         <option value="VEGETABLE">Verdura</option>
@@ -640,8 +739,10 @@ export default function ImageAnalyzer({
                 </label>
                 <input
                   type="text"
-                  value={newIngredient.name || ''}
-                  onChange={(e) => setNewIngredient({...newIngredient, name: e.target.value})}
+                  value={newIngredient.name || ""}
+                  onChange={(e) =>
+                    setNewIngredient({ ...newIngredient, name: e.target.value })
+                  }
                   placeholder="Ej: Sal"
                   className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
                 />
@@ -652,8 +753,13 @@ export default function ImageAnalyzer({
                 </label>
                 <input
                   type="number"
-                  value={newIngredient.quantity || ''}
-                  onChange={(e) => setNewIngredient({...newIngredient, quantity: parseFloat(e.target.value)})}
+                  value={newIngredient.quantity || ""}
+                  onChange={(e) =>
+                    setNewIngredient({
+                      ...newIngredient,
+                      quantity: parseFloat(e.target.value),
+                    })
+                  }
                   placeholder="1"
                   className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
                   min="0"
@@ -665,8 +771,10 @@ export default function ImageAnalyzer({
                   Unidad
                 </label>
                 <select
-                  value={newIngredient.unit || ''}
-                  onChange={(e) => setNewIngredient({...newIngredient, unit: e.target.value})}
+                  value={newIngredient.unit || ""}
+                  onChange={(e) =>
+                    setNewIngredient({ ...newIngredient, unit: e.target.value })
+                  }
                   className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
                 >
                   <option value="">Seleccionar</option>
@@ -685,8 +793,13 @@ export default function ImageAnalyzer({
                   Categoría
                 </label>
                 <select
-                  value={newIngredient.category || ''}
-                  onChange={(e) => setNewIngredient({...newIngredient, category: e.target.value})}
+                  value={newIngredient.category || ""}
+                  onChange={(e) =>
+                    setNewIngredient({
+                      ...newIngredient,
+                      category: e.target.value,
+                    })
+                  }
                   className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
                 >
                   <option value="">Seleccionar</option>
@@ -703,7 +816,12 @@ export default function ImageAnalyzer({
               <div className="flex items-end">
                 <button
                   onClick={addNewIngredient}
-                  disabled={!newIngredient.name || !newIngredient.quantity || !newIngredient.unit || !newIngredient.category}
+                  disabled={
+                    !newIngredient.name ||
+                    !newIngredient.quantity ||
+                    !newIngredient.unit ||
+                    !newIngredient.category
+                  }
                   className="w-full bg-green-500 hover:bg-green-600 disabled:bg-gray-300 disabled:cursor-not-allowed text-white py-2 px-3 rounded-md text-sm font-medium transition-colors"
                 >
                   <Plus className="h-4 w-4 mx-auto" />
@@ -763,7 +881,8 @@ export default function ImageAnalyzer({
                     ✅ Ingredientes Agregados al Inventario
                   </h4>
                   <p className="text-green-700 text-sm">
-                    Los ingredientes han sido agregados exitosamente. Ahora puedes generar un plan de comidas.
+                    Los ingredientes han sido agregados exitosamente. Ahora
+                    puedes generar un plan de comidas.
                   </p>
                 </div>
               </div>
@@ -775,7 +894,9 @@ export default function ImageAnalyzer({
             {!ingredientsAdded ? (
               <motion.button
                 onClick={confirmIngredients}
-                disabled={isAddingToInventory || missingIngredients.length === 0}
+                disabled={
+                  isAddingToInventory || missingIngredients.length === 0
+                }
                 className="flex-1 bg-green-500 text-white py-3 px-6 rounded-xl font-semibold hover:bg-green-600 transition-colors disabled:opacity-50"
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}

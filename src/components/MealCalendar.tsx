@@ -1,9 +1,9 @@
-'use client';
+"use client";
 
-import { useState, useEffect, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  Plus, 
+import { useState, useEffect, useCallback } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  Plus,
   CheckCircle,
   X,
   ChevronLeft,
@@ -19,18 +19,21 @@ import {
   Trash2,
   Edit,
   RotateCcw,
-  Eye
-} from 'lucide-react';
-import { 
-  MealCalendarItem, 
-  CreateMealCalendarItem, 
-  MealType, 
-  MEAL_TYPE_LABELS
-} from '@/types/meal-calendar';
-import { Recipe } from '@/types/recipe';
+  Eye,
+} from "lucide-react";
+import {
+  MealCalendarItem,
+  CreateMealCalendarItem,
+  MealType,
+  MEAL_TYPE_LABELS,
+} from "@/types/meal-calendar";
+import { Recipe } from "@/types/recipe";
 
 // Iconos de Lucide para tipos de comida
-const MEAL_TYPE_LUCIDE_ICONS: Record<MealType, React.ComponentType<{ className?: string }>> = {
+const MEAL_TYPE_LUCIDE_ICONS: Record<
+  MealType,
+  React.ComponentType<{ className?: string }>
+> = {
   [MealType.BREAKFAST]: Coffee,
   [MealType.LUNCH]: Utensils,
   [MealType.SNACK]: Apple,
@@ -48,40 +51,53 @@ export default function MealCalendar({ recipes }: MealCalendarProps) {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingMeal, setEditingMeal] = useState<MealCalendarItem | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
-  
+
   // Estados para el planificador inteligente
   const [isSmartPlannerOpen, setIsSmartPlannerOpen] = useState(false);
-  const [selectedSlots, setSelectedSlots] = useState<Array<{date: Date, mealType: MealType}>>([]);
+  const [selectedSlots, setSelectedSlots] = useState<
+    Array<{ date: Date; mealType: MealType }>
+  >([]);
   const [isGeneratingRecipes, setIsGeneratingRecipes] = useState(false);
-  
+
   // Estados para el modal de detalles de receta
   const [isRecipeDetailOpen, setIsRecipeDetailOpen] = useState(false);
-  const [selectedRecipeMeal, setSelectedRecipeMeal] = useState<MealCalendarItem | null>(null);
+  const [selectedRecipeMeal, setSelectedRecipeMeal] =
+    useState<MealCalendarItem | null>(null);
   const [isRegeneratingRecipe, setIsRegeneratingRecipe] = useState(false);
-  const [selectedMealType, setSelectedMealType] = useState<MealType | null>(null);
+  const [selectedMealType, setSelectedMealType] = useState<MealType | null>(
+    null
+  );
   const [formData, setFormData] = useState<CreateMealCalendarItem>({
     date: new Date(),
     mealType: MealType.BREAKFAST,
-    recipeId: '',
-    customMealName: '',
-    notes: ''
+    recipeId: "",
+    customMealName: "",
+    notes: "",
   });
 
   const fetchMeals = useCallback(async () => {
     try {
-      const startOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
-      const endOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
-      
+      const startOfMonth = new Date(
+        currentDate.getFullYear(),
+        currentDate.getMonth(),
+        1
+      );
+      const endOfMonth = new Date(
+        currentDate.getFullYear(),
+        currentDate.getMonth() + 1,
+        0
+      );
+
       const response = await fetch(
         `/api/meal-calendar?startDate=${startOfMonth.toISOString()}&endDate=${endOfMonth.toISOString()}`
       );
-      
+
       if (response.ok) {
         const data = await response.json();
         setMeals(data);
       }
     } catch (error) {
-      console.error('Error al cargar comidas:', error);
+      console.error("Error al cargar comidas:", error);
     } finally {
       setIsLoading(false);
     }
@@ -97,13 +113,15 @@ export default function MealCalendar({ recipes }: MealCalendarProps) {
     setIsLoading(true);
 
     try {
-      const url = editingMeal ? `/api/meal-calendar/${editingMeal.id}` : '/api/meal-calendar';
-      const method = editingMeal ? 'PUT' : 'POST';
+      const url = editingMeal
+        ? `/api/meal-calendar/${editingMeal.id}`
+        : "/api/meal-calendar";
+      const method = editingMeal ? "PUT" : "POST";
 
       const response = await fetch(url, {
         method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData),
       });
 
       if (response.ok) {
@@ -111,21 +129,20 @@ export default function MealCalendar({ recipes }: MealCalendarProps) {
         resetForm();
       }
     } catch (error) {
-      console.error('Error al guardar comida:', error);
+      console.error("Error al guardar comida:", error);
     } finally {
       setIsLoading(false);
     }
   };
-
 
   const handleEdit = (meal: MealCalendarItem) => {
     setEditingMeal(meal);
     setFormData({
       date: new Date(meal.date),
       mealType: meal.mealType,
-      recipeId: meal.recipeId || '',
-      customMealName: meal.customMealName || '',
-      notes: meal.notes || ''
+      recipeId: meal.recipeId || "",
+      customMealName: meal.customMealName || "",
+      notes: meal.notes || "",
     });
     setIsFormOpen(true);
   };
@@ -134,9 +151,9 @@ export default function MealCalendar({ recipes }: MealCalendarProps) {
     setFormData({
       date: selectedDate,
       mealType: selectedMealType || MealType.BREAKFAST,
-      recipeId: '',
-      customMealName: '',
-      notes: ''
+      recipeId: "",
+      customMealName: "",
+      notes: "",
     });
     setEditingMeal(null);
     setIsFormOpen(false);
@@ -146,23 +163,27 @@ export default function MealCalendar({ recipes }: MealCalendarProps) {
   // Funciones para el planificador inteligente
   const toggleSlotSelection = (date: Date, mealType: MealType) => {
     const existingIndex = selectedSlots.findIndex(
-      slot => slot.date.toISOString().split('T')[0] === date.toISOString().split('T')[0] && 
-              slot.mealType === mealType
+      (slot) =>
+        slot.date.toISOString().split("T")[0] ===
+          date.toISOString().split("T")[0] && slot.mealType === mealType
     );
 
     if (existingIndex >= 0) {
       // Remover slot si ya está seleccionado
-      setSelectedSlots(prev => prev.filter((_, index) => index !== existingIndex));
+      setSelectedSlots((prev) =>
+        prev.filter((_, index) => index !== existingIndex)
+      );
     } else {
       // Agregar slot si no está seleccionado
-      setSelectedSlots(prev => [...prev, { date, mealType }]);
+      setSelectedSlots((prev) => [...prev, { date, mealType }]);
     }
   };
 
   const isSlotSelected = (date: Date, mealType: MealType) => {
     return selectedSlots.some(
-      slot => slot.date.toISOString().split('T')[0] === date.toISOString().split('T')[0] && 
-              slot.mealType === mealType
+      (slot) =>
+        slot.date.toISOString().split("T")[0] ===
+          date.toISOString().split("T")[0] && slot.mealType === mealType
     );
   };
 
@@ -175,8 +196,8 @@ export default function MealCalendar({ recipes }: MealCalendarProps) {
 
     setIsGeneratingRecipes(true);
     try {
-      console.log('Iniciando generación masiva para slots:', selectedSlots);
-      
+      console.log("Iniciando generación masiva para slots:", selectedSlots);
+
       // Agrupar slots por tipo de comida para generar recetas más eficientemente
       const slotsByMealType = selectedSlots.reduce((acc, slot) => {
         if (!acc[slot.mealType]) {
@@ -184,97 +205,149 @@ export default function MealCalendar({ recipes }: MealCalendarProps) {
         }
         acc[slot.mealType].push(slot);
         return acc;
-      }, {} as Record<MealType, Array<{date: Date, mealType: MealType}>>);
+      }, {} as Record<MealType, Array<{ date: Date; mealType: MealType }>>);
 
-      console.log('Slots agrupados por tipo de comida:', slotsByMealType);
+      console.log("Slots agrupados por tipo de comida:", slotsByMealType);
 
       // Generar recetas para cada tipo de comida
       for (const [mealType, slots] of Object.entries(slotsByMealType)) {
         try {
-          console.log(`Generando receta para ${mealType} con ${slots.length} slots`);
-          
-          const response = await fetch('/api/recipes/generate-from-inventory', {
-            method: 'POST',
+          console.log(
+            `Generando receta para ${mealType} con ${slots.length} slots`
+          );
+
+          console.log(`🔄 Iniciando generación de receta para ${mealType}...`);
+
+          const response = await fetch("/api/recipes/generate-from-inventory", {
+            method: "POST",
             headers: {
-              'Content-Type': 'application/json',
+              "Content-Type": "application/json",
             },
             body: JSON.stringify({
               mealType: mealType as MealType,
               servings: 4,
-              suggestIngredients: true
+              suggestIngredients: true,
             }),
+            // Timeout más largo para generación de recetas (5 minutos)
+            signal: AbortSignal.timeout(300000),
           });
 
-          console.log(`Respuesta para ${mealType}:`, response.status, response.ok);
+          console.log(`📡 Respuesta recibida para ${mealType}:`, {
+            status: response.status,
+            ok: response.ok,
+            statusText: response.statusText,
+          });
+
+          console.log(
+            `Respuesta para ${mealType}:`,
+            response.status,
+            response.ok
+          );
 
           if (response.ok) {
             const responseData = await response.json();
-            console.log(`Datos de respuesta para ${mealType}:`, responseData);
-            
+            console.log(
+              `✅ Datos de respuesta para ${mealType}:`,
+              responseData
+            );
+
             const recipe = responseData.recipe;
             if (!recipe || !recipe.id) {
-              console.error(`No se pudo obtener la receta para ${mealType}:`, responseData);
+              console.error(
+                `❌ No se pudo obtener la receta para ${mealType}:`,
+                responseData
+              );
               continue;
             }
-            
+
+            console.log(`🎯 Receta obtenida para ${mealType}:`, {
+              id: recipe.id,
+              title: recipe.title,
+              description: recipe.description?.substring(0, 100) + "...",
+              instructions: recipe.instructions?.substring(0, 100) + "...",
+            });
+
             // Crear o actualizar entradas en el calendario para cada slot de este tipo de comida
             for (const slot of slots) {
-              console.log(`Procesando entrada en calendario para ${slot.date} - ${slot.mealType}`);
-              
+              console.log(
+                `Procesando entrada en calendario para ${slot.date} - ${slot.mealType}`
+              );
+
               // Primero intentar crear una nueva entrada
-              const calendarResponse = await fetch('/api/meal-calendar', {
-                method: 'POST',
+              const calendarResponse = await fetch("/api/meal-calendar", {
+                method: "POST",
                 headers: {
-                  'Content-Type': 'application/json',
+                  "Content-Type": "application/json",
                 },
                 body: JSON.stringify({
                   date: slot.date.toISOString(),
                   mealType: slot.mealType,
                   recipeId: recipe.id,
-                  notes: `Generado automáticamente por el Planificador Inteligente`
+                  notes: `Generado automáticamente por el Planificador Inteligente`,
                 }),
               });
 
               if (calendarResponse.ok) {
-                console.log(`Entrada creada exitosamente para ${slot.date} - ${slot.mealType}`);
+                console.log(
+                  `Entrada creada exitosamente para ${slot.date} - ${slot.mealType}`
+                );
               } else {
                 // Si falla porque ya existe, buscar la entrada existente y actualizarla
                 await calendarResponse.text();
-                console.log(`Entrada ya existe para ${slot.date} - ${slot.mealType}, actualizando...`);
-                
+                console.log(
+                  `Entrada ya existe para ${slot.date} - ${slot.mealType}, actualizando...`
+                );
+
                 // Buscar la entrada existente en el array de meals
-                const existingMeal = meals.find(meal => {
+                const existingMeal = meals.find((meal) => {
                   const mealDate = new Date(meal.date);
-                  return mealDate.toISOString().split('T')[0] === slot.date.toISOString().split('T')[0] && 
-                         meal.mealType === slot.mealType;
+                  return (
+                    mealDate.toISOString().split("T")[0] ===
+                      slot.date.toISOString().split("T")[0] &&
+                    meal.mealType === slot.mealType
+                  );
                 });
 
                 if (existingMeal) {
                   // Actualizar la entrada existente
-                  const updateResponse = await fetch(`/api/meal-calendar/${existingMeal.id}`, {
-                    method: 'PUT',
-                    headers: {
-                      'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                      recipeId: recipe.id,
-                      notes: `Actualizado automáticamente por el Planificador Inteligente`
-                    }),
-                  });
+                  const updateResponse = await fetch(
+                    `/api/meal-calendar/${existingMeal.id}`,
+                    {
+                      method: "PUT",
+                      headers: {
+                        "Content-Type": "application/json",
+                      },
+                      body: JSON.stringify({
+                        recipeId: recipe.id,
+                        notes: `Actualizado automáticamente por el Planificador Inteligente`,
+                      }),
+                    }
+                  );
 
                   if (updateResponse.ok) {
-                    console.log(`Entrada actualizada exitosamente para ${slot.date} - ${slot.mealType}`);
+                    console.log(
+                      `Entrada actualizada exitosamente para ${slot.date} - ${slot.mealType}`
+                    );
                   } else {
-                    console.error(`Error actualizando entrada para ${slot.date} - ${slot.mealType}:`, await updateResponse.text());
+                    console.error(
+                      `Error actualizando entrada para ${slot.date} - ${slot.mealType}:`,
+                      await updateResponse.text()
+                    );
                   }
                 } else {
-                  console.error(`No se encontró entrada existente para actualizar ${slot.date} - ${slot.mealType}`);
+                  console.error(
+                    `No se encontró entrada existente para actualizar ${slot.date} - ${slot.mealType}`
+                  );
                 }
               }
             }
           } else {
             const errorText = await response.text();
-            console.error(`Error en API de generación para ${mealType}:`, errorText);
+            console.error(`❌ Error en API de generación para ${mealType}:`, {
+              status: response.status,
+              statusText: response.statusText,
+              error: errorText,
+            });
           }
         } catch (error) {
           console.error(`Error generando recetas para ${mealType}:`, error);
@@ -282,13 +355,12 @@ export default function MealCalendar({ recipes }: MealCalendarProps) {
       }
 
       // Recargar las comidas y limpiar selección
-      console.log('Recargando comidas...');
+      console.log("Recargando comidas...");
       await fetchMeals();
       clearSelectedSlots();
       setIsSmartPlannerOpen(false);
-      
     } catch (error) {
-      console.error('Error en generación masiva:', error);
+      console.error("Error en generación masiva:", error);
     } finally {
       setIsGeneratingRecipes(false);
     }
@@ -313,7 +385,7 @@ export default function MealCalendar({ recipes }: MealCalendarProps) {
   const handleDeleteRecipe = async (meal: MealCalendarItem) => {
     try {
       const response = await fetch(`/api/meal-calendar/${meal.id}`, {
-        method: 'DELETE',
+        method: "DELETE",
       });
 
       if (response.ok) {
@@ -321,7 +393,7 @@ export default function MealCalendar({ recipes }: MealCalendarProps) {
         closeRecipeDetail();
       }
     } catch (error) {
-      console.error('Error eliminando receta:', error);
+      console.error("Error eliminando receta:", error);
     }
   };
 
@@ -331,31 +403,31 @@ export default function MealCalendar({ recipes }: MealCalendarProps) {
     setIsRegeneratingRecipe(true);
     try {
       // Generar nueva receta con IA
-      const response = await fetch('/api/recipes/generate-from-inventory', {
-        method: 'POST',
+      const response = await fetch("/api/recipes/generate-from-inventory", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           mealType: meal.mealType,
           servings: 4,
-          suggestIngredients: true
+          suggestIngredients: true,
         }),
       });
 
       if (response.ok) {
         const responseData = await response.json();
         const newRecipe = responseData.recipe;
-        
+
         // Actualizar la entrada del calendario con la nueva receta
         await fetch(`/api/meal-calendar/${meal.id}`, {
-          method: 'PUT',
+          method: "PUT",
           headers: {
-            'Content-Type': 'application/json',
+            "Content-Type": "application/json",
           },
           body: JSON.stringify({
             recipeId: newRecipe.id,
-            notes: `Regenerado automáticamente con IA - ${new Date().toLocaleDateString()}`
+            notes: `Regenerado automáticamente con IA - ${new Date().toLocaleDateString()}`,
           }),
         });
 
@@ -363,7 +435,7 @@ export default function MealCalendar({ recipes }: MealCalendarProps) {
         closeRecipeDetail();
       }
     } catch (error) {
-      console.error('Error regenerando receta:', error);
+      console.error("Error regenerando receta:", error);
     } finally {
       setIsRegeneratingRecipe(false);
     }
@@ -375,19 +447,21 @@ export default function MealCalendar({ recipes }: MealCalendarProps) {
     setFormData({
       date,
       mealType,
-      recipeId: '',
-      customMealName: '',
-      notes: ''
+      recipeId: "",
+      customMealName: "",
+      notes: "",
     });
     setIsFormOpen(true);
   };
 
   const getMealForDate = (date: Date, mealType: MealType) => {
-    const dateStr = date.toISOString().split('T')[0];
-    return meals.find(meal => {
+    const dateStr = date.toISOString().split("T")[0];
+    return meals.find((meal) => {
       const mealDate = new Date(meal.date);
-      return mealDate.toISOString().split('T')[0] === dateStr && 
-             meal.mealType === mealType;
+      return (
+        mealDate.toISOString().split("T")[0] === dateStr &&
+        meal.mealType === mealType
+      );
     });
   };
 
@@ -400,33 +474,33 @@ export default function MealCalendar({ recipes }: MealCalendarProps) {
     const startingDayOfWeek = firstDay.getDay();
 
     const days = [];
-    
+
     // Días del mes anterior
     for (let i = startingDayOfWeek - 1; i >= 0; i--) {
       const prevDate = new Date(year, month, -i);
       days.push({ date: prevDate, isCurrentMonth: false });
     }
-    
+
     // Días del mes actual
     for (let day = 1; day <= daysInMonth; day++) {
       const currentDate = new Date(year, month, day);
       days.push({ date: currentDate, isCurrentMonth: true });
     }
-    
+
     // Días del mes siguiente
     const remainingDays = 42 - days.length; // 6 semanas * 7 días
     for (let day = 1; day <= remainingDays; day++) {
       const nextDate = new Date(year, month + 1, day);
       days.push({ date: nextDate, isCurrentMonth: false });
     }
-    
+
     return days;
   };
 
-  const navigateMonth = (direction: 'prev' | 'next') => {
-    setCurrentDate(prev => {
+  const navigateMonth = (direction: "prev" | "next") => {
+    setCurrentDate((prev) => {
       const newDate = new Date(prev);
-      if (direction === 'prev') {
+      if (direction === "prev") {
         newDate.setMonth(prev.getMonth() - 1);
       } else {
         newDate.setMonth(prev.getMonth() + 1);
@@ -484,9 +558,9 @@ export default function MealCalendar({ recipes }: MealCalendarProps) {
             className={`flex items-center space-x-2 font-medium py-3 px-6 rounded-xl transition-all duration-200 shadow-medium ${
               isSmartPlannerOpen
                 ? selectedSlots.length > 0
-                  ? 'bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white'
-                  : 'bg-gradient-to-r from-gray-400 to-gray-500 text-gray-200 cursor-not-allowed'
-                : 'bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white'
+                  ? "bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white"
+                  : "bg-gradient-to-r from-gray-400 to-gray-500 text-gray-200 cursor-not-allowed"
+                : "bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white"
             }`}
           >
             {isGeneratingRecipes ? (
@@ -506,7 +580,7 @@ export default function MealCalendar({ recipes }: MealCalendarProps) {
               </>
             )}
           </motion.button>
-          
+
           {isSmartPlannerOpen && (
             <motion.button
               whileHover={{ scale: 1.05 }}
@@ -521,7 +595,7 @@ export default function MealCalendar({ recipes }: MealCalendarProps) {
               <span>Cancelar</span>
             </motion.button>
           )}
-          
+
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
@@ -552,8 +626,9 @@ export default function MealCalendar({ recipes }: MealCalendarProps) {
                   Modo Planificador Inteligente
                 </h4>
                 <p className="text-sm text-purple-700">
-                  Haz clic en los slots de comida para seleccionarlos. 
-                  {selectedSlots.length > 0 && ` ${selectedSlots.length} slots seleccionados.`}
+                  Haz clic en los slots de comida para seleccionarlos.
+                  {selectedSlots.length > 0 &&
+                    ` ${selectedSlots.length} slots seleccionados.`}
                 </p>
               </div>
             </div>
@@ -578,13 +653,16 @@ export default function MealCalendar({ recipes }: MealCalendarProps) {
       <div className="bg-white rounded-2xl p-6 shadow-soft border border-primary-200">
         <div className="flex items-center justify-between mb-6">
           <h3 className="text-xl font-semibold text-gray-900">
-            {currentDate.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })}
+            {currentDate.toLocaleDateString("es-ES", {
+              month: "long",
+              year: "numeric",
+            })}
           </h3>
           <div className="flex items-center space-x-2">
             <motion.button
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.9 }}
-              onClick={() => navigateMonth('prev')}
+              onClick={() => navigateMonth("prev")}
               className="p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all duration-200"
             >
               <ChevronLeft className="w-5 h-5" />
@@ -600,7 +678,7 @@ export default function MealCalendar({ recipes }: MealCalendarProps) {
             <motion.button
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.9 }}
-              onClick={() => navigateMonth('next')}
+              onClick={() => navigateMonth("next")}
               className="p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all duration-200"
             >
               <ChevronRight className="w-5 h-5" />
@@ -611,12 +689,15 @@ export default function MealCalendar({ recipes }: MealCalendarProps) {
         {/* Calendar Grid */}
         <div className="grid grid-cols-7 gap-1">
           {/* Day Headers */}
-          {['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'].map((day) => (
-            <div key={day} className="p-2 text-center text-sm font-medium text-gray-500">
+          {["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"].map((day) => (
+            <div
+              key={day}
+              className="p-2 text-center text-sm font-medium text-gray-500"
+            >
               {day}
             </div>
           ))}
-          
+
           {/* Calendar Days */}
           {getDaysInMonth(currentDate).map((day, index) => (
             <motion.div
@@ -625,27 +706,33 @@ export default function MealCalendar({ recipes }: MealCalendarProps) {
               animate={{ opacity: 1 }}
               transition={{ delay: index * 0.01 }}
               className={`min-h-[120px] p-3 border border-gray-100 rounded-lg ${
-                day.isCurrentMonth ? 'bg-white hover:bg-gray-50' : 'bg-gray-50'
-              } ${isToday(day.date) ? 'ring-2 ring-primary-500 bg-primary-50' : ''} transition-all duration-200`}
+                day.isCurrentMonth ? "bg-white hover:bg-gray-50" : "bg-gray-50"
+              } ${
+                isToday(day.date) ? "ring-2 ring-primary-500 bg-primary-50" : ""
+              } transition-all duration-200`}
             >
               <div className="flex items-center justify-between mb-2">
-                <span className={`text-sm font-medium ${
-                  day.isCurrentMonth ? 'text-gray-900' : 'text-gray-400'
-                } ${isToday(day.date) ? 'text-primary-600' : ''}`}>
+                <span
+                  className={`text-sm font-medium ${
+                    day.isCurrentMonth ? "text-gray-900" : "text-gray-400"
+                  } ${isToday(day.date) ? "text-primary-600" : ""}`}
+                >
                   {day.date.getDate()}
                 </span>
                 {day.isCurrentMonth && (
                   <motion.button
                     whileHover={{ scale: 1.1 }}
                     whileTap={{ scale: 0.9 }}
-                    onClick={() => openFormForMeal(day.date, MealType.BREAKFAST)}
+                    onClick={() =>
+                      openFormForMeal(day.date, MealType.BREAKFAST)
+                    }
                     className="w-6 h-6 text-gray-300 hover:text-primary-600 hover:bg-primary-50 rounded-full transition-all duration-200 flex items-center justify-center"
                   >
                     <Plus className="w-3 h-3" />
                   </motion.button>
                 )}
               </div>
-              
+
               {/* Meal Types */}
               <div className="space-y-1">
                 {mealTypes.map((mealType) => {
@@ -656,12 +743,12 @@ export default function MealCalendar({ recipes }: MealCalendarProps) {
                       whileHover={{ scale: 1.02 }}
                       className={`text-xs p-2 rounded-lg cursor-pointer transition-all duration-200 ${
                         isSmartPlannerOpen && isSlotSelected(day.date, mealType)
-                          ? 'bg-purple-200 text-purple-800 border-2 border-purple-400 ring-2 ring-purple-200'
-                          : meal 
-                            ? meal.isCompleted 
-                              ? 'bg-green-100 text-green-800 border border-green-200' 
-                              : 'bg-primary-100 text-primary-800 border border-primary-200'
-                            : 'bg-gray-50 text-gray-400 hover:bg-gray-100 hover:text-gray-600 border border-gray-200'
+                          ? "bg-purple-200 text-purple-800 border-2 border-purple-400 ring-2 ring-purple-200"
+                          : meal
+                          ? meal.isCompleted
+                            ? "bg-green-100 text-green-800 border border-green-200"
+                            : "bg-primary-100 text-primary-800 border border-primary-200"
+                          : "bg-gray-50 text-gray-400 hover:bg-gray-100 hover:text-gray-600 border border-gray-200"
                       }`}
                       onClick={() => {
                         if (isSmartPlannerOpen) {
@@ -681,13 +768,22 @@ export default function MealCalendar({ recipes }: MealCalendarProps) {
                     >
                       <div className="flex items-center space-x-2">
                         {(() => {
-                          const IconComponent = MEAL_TYPE_LUCIDE_ICONS[mealType];
-                          return <IconComponent className="w-4 h-4 text-primary-600 flex-shrink-0" />;
+                          const IconComponent =
+                            MEAL_TYPE_LUCIDE_ICONS[mealType];
+                          return (
+                            <IconComponent className="w-4 h-4 text-primary-600 flex-shrink-0" />
+                          );
                         })()}
                         <span className="truncate text-sm font-medium">
-                          {meal ? (meal.recipe?.title || meal.customMealName || MEAL_TYPE_LABELS[mealType]) : MEAL_TYPE_LABELS[mealType]}
+                          {meal
+                            ? meal.recipe?.title ||
+                              meal.customMealName ||
+                              MEAL_TYPE_LABELS[mealType]
+                            : MEAL_TYPE_LABELS[mealType]}
                         </span>
-                        {meal?.isCompleted && <CheckCircle className="w-3 h-3 text-green-600 flex-shrink-0" />}
+                        {meal?.isCompleted && (
+                          <CheckCircle className="w-3 h-3 text-green-600 flex-shrink-0" />
+                        )}
                       </div>
                     </motion.div>
                   );
@@ -721,7 +817,7 @@ export default function MealCalendar({ recipes }: MealCalendarProps) {
                     <ChefHat className="w-5 h-5 text-primary-600" />
                   </div>
                   <h3 className="text-xl font-bold text-gray-900">
-                    {editingMeal ? 'Editar Comida' : 'Agregar Comida'}
+                    {editingMeal ? "Editar Comida" : "Agregar Comida"}
                   </h3>
                 </div>
                 <button
@@ -740,8 +836,13 @@ export default function MealCalendar({ recipes }: MealCalendarProps) {
                   </label>
                   <input
                     type="date"
-                    value={formData.date.toISOString().split('T')[0]}
-                    onChange={(e) => setFormData({ ...formData, date: new Date(e.target.value) })}
+                    value={formData.date.toISOString().split("T")[0]}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        date: new Date(e.target.value),
+                      })
+                    }
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                     required
                   />
@@ -754,7 +855,12 @@ export default function MealCalendar({ recipes }: MealCalendarProps) {
                   </label>
                   <select
                     value={formData.mealType}
-                    onChange={(e) => setFormData({ ...formData, mealType: e.target.value as MealType })}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        mealType: e.target.value as MealType,
+                      })
+                    }
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                     required
                   >
@@ -773,7 +879,9 @@ export default function MealCalendar({ recipes }: MealCalendarProps) {
                   </label>
                   <select
                     value={formData.recipeId}
-                    onChange={(e) => setFormData({ ...formData, recipeId: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, recipeId: e.target.value })
+                    }
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                   >
                     <option value="">Selecciona una receta</option>
@@ -793,7 +901,12 @@ export default function MealCalendar({ recipes }: MealCalendarProps) {
                   <input
                     type="text"
                     value={formData.customMealName}
-                    onChange={(e) => setFormData({ ...formData, customMealName: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        customMealName: e.target.value,
+                      })
+                    }
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                     placeholder="Ej: Pizza casera, Ensalada especial..."
                   />
@@ -806,7 +919,9 @@ export default function MealCalendar({ recipes }: MealCalendarProps) {
                   </label>
                   <textarea
                     value={formData.notes}
-                    onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, notes: e.target.value })
+                    }
                     rows={3}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                     placeholder="Notas adicionales sobre esta comida..."
@@ -835,7 +950,7 @@ export default function MealCalendar({ recipes }: MealCalendarProps) {
                     ) : (
                       <>
                         <CheckCircle className="w-4 h-4" />
-                        <span>{editingMeal ? 'Actualizar' : 'Agregar'}</span>
+                        <span>{editingMeal ? "Actualizar" : "Agregar"}</span>
                       </>
                     )}
                   </button>
@@ -870,14 +985,20 @@ export default function MealCalendar({ recipes }: MealCalendarProps) {
                   </div>
                   <div>
                     <h3 className="text-xl font-bold text-gray-900">
-                      {selectedRecipeMeal.recipe?.title || selectedRecipeMeal.customMealName || 'Comida Programada'}
+                      {selectedRecipeMeal.recipe?.title ||
+                        selectedRecipeMeal.customMealName ||
+                        "Comida Programada"}
                     </h3>
                     <p className="text-sm text-gray-600">
-                      {new Date(selectedRecipeMeal.date).toLocaleDateString('es-ES', { 
-                        weekday: 'long', 
-                        day: 'numeric', 
-                        month: 'long' 
-                      })} - {MEAL_TYPE_LABELS[selectedRecipeMeal.mealType]}
+                      {new Date(selectedRecipeMeal.date).toLocaleDateString(
+                        "es-ES",
+                        {
+                          weekday: "long",
+                          day: "numeric",
+                          month: "long",
+                        }
+                      )}{" "}
+                      - {MEAL_TYPE_LABELS[selectedRecipeMeal.mealType]}
                     </p>
                   </div>
                 </div>
@@ -894,7 +1015,9 @@ export default function MealCalendar({ recipes }: MealCalendarProps) {
                 <div className="space-y-6">
                   {/* Recipe Info */}
                   <div className="bg-gray-50 rounded-lg p-4">
-                    <h4 className="font-semibold text-gray-900 mb-3">Información de la Receta</h4>
+                    <h4 className="font-semibold text-gray-900 mb-3">
+                      Información de la Receta
+                    </h4>
                     <div className="grid grid-cols-2 gap-4">
                       <div className="flex items-center space-x-2">
                         <Clock className="w-4 h-4 text-gray-600" />
@@ -915,9 +1038,23 @@ export default function MealCalendar({ recipes }: MealCalendarProps) {
                         </span>
                       </div>
                       <div className="flex items-center space-x-2">
-                        <CheckCircle className={`w-4 h-4 ${selectedRecipeMeal.isCompleted ? 'text-green-600' : 'text-gray-400'}`} />
-                        <span className={`text-sm ${selectedRecipeMeal.isCompleted ? 'text-green-700' : 'text-gray-700'}`}>
-                          {selectedRecipeMeal.isCompleted ? 'Completada' : 'Pendiente'}
+                        <CheckCircle
+                          className={`w-4 h-4 ${
+                            selectedRecipeMeal.isCompleted
+                              ? "text-green-600"
+                              : "text-gray-400"
+                          }`}
+                        />
+                        <span
+                          className={`text-sm ${
+                            selectedRecipeMeal.isCompleted
+                              ? "text-green-700"
+                              : "text-gray-700"
+                          }`}
+                        >
+                          {selectedRecipeMeal.isCompleted
+                            ? "Completada"
+                            : "Pendiente"}
                         </span>
                       </div>
                     </div>
@@ -926,7 +1063,9 @@ export default function MealCalendar({ recipes }: MealCalendarProps) {
                   {/* Description */}
                   {selectedRecipeMeal.recipe.description && (
                     <div>
-                      <h4 className="font-semibold text-gray-900 mb-2">Descripción</h4>
+                      <h4 className="font-semibold text-gray-900 mb-2">
+                        Descripción
+                      </h4>
                       <p className="text-gray-700 text-sm leading-relaxed">
                         {selectedRecipeMeal.recipe.description}
                       </p>
@@ -936,19 +1075,25 @@ export default function MealCalendar({ recipes }: MealCalendarProps) {
                   {/* Ingredients */}
                   {selectedRecipeMeal.recipe.ingredients && (
                     <div>
-                      <h4 className="font-semibold text-gray-900 mb-3">Ingredientes</h4>
+                      <h4 className="font-semibold text-gray-900 mb-3">
+                        Ingredientes
+                      </h4>
                       <div className="flex flex-wrap gap-2">
                         {(() => {
                           try {
-                            const ingredients = JSON.parse(selectedRecipeMeal.recipe.ingredients);
-                            return ingredients.map((ingredient: { name: string }, index: number) => (
-                              <span
-                                key={index}
-                                className="px-3 py-1 bg-primary-100 text-primary-800 text-sm rounded-full border border-primary-200"
-                              >
-                                {ingredient.name}
-                              </span>
-                            ));
+                            const ingredients = JSON.parse(
+                              selectedRecipeMeal.recipe.ingredients
+                            );
+                            return ingredients.map(
+                              (ingredient: { name: string }, index: number) => (
+                                <span
+                                  key={index}
+                                  className="px-3 py-1 bg-primary-100 text-primary-800 text-sm rounded-full border border-primary-200"
+                                >
+                                  {ingredient.name}
+                                </span>
+                              )
+                            );
                           } catch {
                             return (
                               <span className="text-gray-600 text-sm">
@@ -964,7 +1109,9 @@ export default function MealCalendar({ recipes }: MealCalendarProps) {
                   {/* Instructions */}
                   {selectedRecipeMeal.recipe.instructions && (
                     <div>
-                      <h4 className="font-semibold text-gray-900 mb-3">Instrucciones</h4>
+                      <h4 className="font-semibold text-gray-900 mb-3">
+                        Instrucciones
+                      </h4>
                       <div className="bg-gray-50 rounded-lg p-4">
                         <p className="text-gray-800 text-sm leading-relaxed whitespace-pre-line">
                           {selectedRecipeMeal.recipe.instructions}
@@ -976,7 +1123,9 @@ export default function MealCalendar({ recipes }: MealCalendarProps) {
                   {/* Notes */}
                   {selectedRecipeMeal.notes && (
                     <div>
-                      <h4 className="font-semibold text-gray-900 mb-2">Notas</h4>
+                      <h4 className="font-semibold text-gray-900 mb-2">
+                        Notas
+                      </h4>
                       <p className="text-gray-700 text-sm bg-yellow-50 border border-yellow-200 rounded-lg p-3">
                         {selectedRecipeMeal.notes}
                       </p>
@@ -986,22 +1135,29 @@ export default function MealCalendar({ recipes }: MealCalendarProps) {
               )}
 
               {/* Custom Meal */}
-              {!selectedRecipeMeal.recipe && selectedRecipeMeal.customMealName && (
-                <div className="space-y-4">
-                  <div className="bg-gray-50 rounded-lg p-4">
-                    <h4 className="font-semibold text-gray-900 mb-2">Comida Personalizada</h4>
-                    <p className="text-gray-700">{selectedRecipeMeal.customMealName}</p>
-                  </div>
-                  {selectedRecipeMeal.notes && (
-                    <div>
-                      <h4 className="font-semibold text-gray-900 mb-2">Notas</h4>
-                      <p className="text-gray-700 text-sm bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-                        {selectedRecipeMeal.notes}
+              {!selectedRecipeMeal.recipe &&
+                selectedRecipeMeal.customMealName && (
+                  <div className="space-y-4">
+                    <div className="bg-gray-50 rounded-lg p-4">
+                      <h4 className="font-semibold text-gray-900 mb-2">
+                        Comida Personalizada
+                      </h4>
+                      <p className="text-gray-700">
+                        {selectedRecipeMeal.customMealName}
                       </p>
                     </div>
-                  )}
-                </div>
-              )}
+                    {selectedRecipeMeal.notes && (
+                      <div>
+                        <h4 className="font-semibold text-gray-900 mb-2">
+                          Notas
+                        </h4>
+                        <p className="text-gray-700 text-sm bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                          {selectedRecipeMeal.notes}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
 
               {/* Action Buttons */}
               <div className="flex space-x-3 pt-6 border-t border-gray-200">
@@ -1012,7 +1168,7 @@ export default function MealCalendar({ recipes }: MealCalendarProps) {
                   <Edit className="w-4 h-4" />
                   <span>Editar</span>
                 </button>
-                
+
                 {selectedRecipeMeal.recipe && (
                   <button
                     onClick={() => handleRegenerateRecipe(selectedRecipeMeal)}
@@ -1032,7 +1188,7 @@ export default function MealCalendar({ recipes }: MealCalendarProps) {
                     )}
                   </button>
                 )}
-                
+
                 <button
                   onClick={() => handleDeleteRecipe(selectedRecipeMeal)}
                   className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md transition-colors flex items-center justify-center space-x-2"
@@ -1045,7 +1201,6 @@ export default function MealCalendar({ recipes }: MealCalendarProps) {
           </motion.div>
         )}
       </AnimatePresence>
-
     </div>
   );
 }

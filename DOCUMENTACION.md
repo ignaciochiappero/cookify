@@ -510,13 +510,16 @@ Responde ÚNICAMENTE en formato JSON válido:
 - **Creación de nuevos ingredientes** con formulario completo
 - **Edición individual de ingredientes** con formulario completo
 - **Eliminación individual de ingredientes** con confirmación
+- **Creación de recetas personalizadas** con formulario completo
+- **Selección de ingredientes** para recetas personalizadas
+- **Gestión de cantidades** de ingredientes en recetas
 - Botón "🤖 Generar Receta" prominente
 - Indicador visual de ingredientes seleccionados
 - Estados de carga y error
 - Modal de receta generada con confetti
 - Diseño moderno con tarjetas y animaciones
 - Gestión directa de inventario desde el dashboard
-- **Gestión completa de ingredientes** sin necesidad de panel de administración
+- **Gestión completa de ingredientes y recetas** sin necesidad de panel de administración
 
 #### 4. Meal Planner (`/meal-planner`)
 - **Pestaña Inventario**: Gestión de ingredientes con cantidades y unidades
@@ -541,17 +544,20 @@ Responde ÚNICAMENTE en formato JSON válido:
 - Edición y eliminación de recetas
 - Diseño responsive y atractivo
 
-#### 6. Gestión de Ingredientes (Integrada en Dashboard)
+#### 6. Gestión de Ingredientes y Recetas (Integrada en Dashboard)
 - **Creación de nuevos ingredientes** con formulario completo
 - **Edición individual** de ingredientes con formulario completo
 - **Eliminación individual** de ingredientes desde el dashboard
+- **Creación de recetas personalizadas** con formulario completo
+- **Selección de ingredientes** para recetas personalizadas
+- **Gestión de cantidades** de ingredientes en recetas
 - **Formulario de creación/edición** con todos los campos (nombre, descripción, imagen, categoría, unidad, icono)
 - **Selector de iconos** con 40+ opciones de Lucide React
 - **Confirmación de eliminación** con modal de advertencia
 - **Gestión completa** sin necesidad de panel de administración separado
 - **Actualización en tiempo real** de la lista de ingredientes
 - **Integración directa** con el flujo de trabajo del usuario
-- **Interfaz unificada** para todas las operaciones de ingredientes
+- **Interfaz unificada** para todas las operaciones de ingredientes y recetas
 
 ### Componentes Reutilizables
 
@@ -681,15 +687,18 @@ GEMINI_API_KEY="tu-api-key-de-gemini-aqui"
    - Sesiones JWT
    - Páginas de autenticación modernas
 
-2. **Gestión de Ingredientes**
+2. **Gestión de Ingredientes y Recetas**
    - **Creación de nuevos ingredientes** desde el dashboard con formulario completo
    - **Edición individual** desde el dashboard con formulario completo
    - **Eliminación individual** desde el dashboard
+   - **Creación de recetas personalizadas** desde el dashboard
+   - **Selección de ingredientes** para recetas personalizadas
+   - **Gestión de cantidades** de ingredientes en recetas
    - Categorización de ingredientes (verdura, fruta, carne, etc.)
    - Unidades de medida específicas (piezas, gramos, litros, etc.)
    - **Selector de iconos** con 40+ opciones de Lucide React
    - **Gestión integrada** en el flujo de trabajo del usuario
-   - Usuarios pueden crear, seleccionar, editar y gestionar ingredientes disponibles
+   - Usuarios pueden crear, seleccionar, editar y gestionar ingredientes y recetas disponibles
 
 3. **Sistema de Inventario Avanzado**
    - Gestión de cantidades específicas por ingrediente

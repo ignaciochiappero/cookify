@@ -90,7 +90,8 @@ export async function POST() {
     console.log(`🌱 Iniciando seed de ${commonFoods.length} alimentos comunes`);
 
     // Usar transacción para insertar todos los alimentos
-    const result = await prisma.$transaction(async (tx) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const result = await prisma.$transaction(async (tx: any) => {
       const created = [];
       const skipped = [];
 

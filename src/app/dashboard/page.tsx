@@ -21,7 +21,9 @@ import {
   BookOpen,
   Trash2,
   Edit,
-  Check
+  Check,
+  FileText,
+  List
 } from 'lucide-react';
 import Confetti from 'react-confetti';
 import { Food } from '@/types/food';
@@ -78,6 +80,17 @@ export default function Dashboard() {
     category: 'VEGETABLE' as 'VEGETABLE' | 'FRUIT' | 'MEAT' | 'DAIRY' | 'GRAIN' | 'LIQUID' | 'SPICE' | 'OTHER',
     unit: 'PIECE' as 'PIECE' | 'GRAM' | 'KILOGRAM' | 'LITER' | 'MILLILITER' | 'CUP' | 'TABLESPOON' | 'TEASPOON' | 'POUND' | 'OUNCE'
   });
+  const [showCreateRecipeModal, setShowCreateRecipeModal] = useState(false);
+  const [isCreatingRecipe, setIsCreatingRecipe] = useState(false);
+  const [createRecipeFormData, setCreateRecipeFormData] = useState({
+    title: '',
+    description: '',
+    instructions: '',
+    cookingTime: 30,
+    difficulty: 'Fácil' as 'Fácil' | 'Intermedio' | 'Difícil',
+    servings: 4,
+    ingredients: [] as Array<{ foodId: string; quantity: number; unit: string; name: string }>
+  });
 
   // Mapeo de unidades para mostrar nombres amigables
   const unitLabels = {
@@ -117,6 +130,13 @@ export default function Dashboard() {
     { value: 'TEASPOON', label: 'Cucharaditas' },
     { value: 'POUND', label: 'Libras' },
     { value: 'OUNCE', label: 'Onzas' }
+  ];
+
+  // Opciones de dificultad
+  const difficulties = [
+    { value: 'Fácil', label: 'Fácil' },
+    { value: 'Intermedio', label: 'Intermedio' },
+    { value: 'Difícil', label: 'Difícil' }
   ];
 
   useEffect(() => {
@@ -549,6 +569,123 @@ export default function Dashboard() {
     });
   };
 
+  const handleCreateRecipe = () => {
+    setCreateRecipeFormData({
+      title: '',
+      description: '',
+      instructions: '',
+      cookingTime: 30,
+      difficulty: 'Fácil',
+      servings: 4,
+      ingredients: []
+    });
+    setShowCreateRecipeModal(true);
+  };
+
+  const handleSaveCreateRecipe = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!createRecipeFormData.title.trim() || !createRecipeFormData.description.trim() || !createRecipeFormData.instructions.trim()) {
+      alert('Por favor completa todos los campos requeridos');
+      return;
+    }
+
+    if (createRecipeFormData.ingredients.length === 0) {
+      alert('Por favor agrega al menos un ingrediente');
+      return;
+    }
+
+    try {
+      setIsCreatingRecipe(true);
+      
+      const response = await fetch('/api/recipes', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          title: createRecipeFormData.title,
+          description: createRecipeFormData.description,
+          instructions: createRecipeFormData.instructions,
+          cookingTime: createRecipeFormData.cookingTime,
+          difficulty: createRecipeFormData.difficulty,
+          servings: createRecipeFormData.servings,
+          ingredients: createRecipeFormData.ingredients
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        setShowCreateRecipeModal(false);
+        setCreateRecipeFormData({
+          title: '',
+          description: '',
+          instructions: '',
+          cookingTime: 30,
+          difficulty: 'Fácil',
+          servings: 4,
+          ingredients: []
+        });
+        alert('Receta creada exitosamente');
+      } else {
+        alert(result.error || 'Error al crear la receta');
+      }
+    } catch (error) {
+      console.error('Error creando receta:', error);
+      alert('Error de conexión al crear receta');
+    } finally {
+      setIsCreatingRecipe(false);
+    }
+  };
+
+  const closeCreateRecipeModal = () => {
+    setShowCreateRecipeModal(false);
+    setCreateRecipeFormData({
+      title: '',
+      description: '',
+      instructions: '',
+      cookingTime: 30,
+      difficulty: 'Fácil',
+      servings: 4,
+      ingredients: []
+    });
+  };
+
+  const addIngredientToRecipe = (food: Food) => {
+    const existingIngredient = createRecipeFormData.ingredients.find(ing => ing.foodId === food.id);
+    if (existingIngredient) {
+      alert('Este ingrediente ya está agregado a la receta');
+      return;
+    }
+
+    setCreateRecipeFormData(prev => ({
+      ...prev,
+      ingredients: [...prev.ingredients, {
+        foodId: food.id,
+        quantity: 1,
+        unit: food.unit,
+        name: food.name
+      }]
+    }));
+  };
+
+  const removeIngredientFromRecipe = (foodId: string) => {
+    setCreateRecipeFormData(prev => ({
+      ...prev,
+      ingredients: prev.ingredients.filter(ing => ing.foodId !== foodId)
+    }));
+  };
+
+  const updateIngredientQuantity = (foodId: string, quantity: number) => {
+    setCreateRecipeFormData(prev => ({
+      ...prev,
+      ingredients: prev.ingredients.map(ing => 
+        ing.foodId === foodId ? { ...ing, quantity } : ing
+      )
+    }));
+  };
+
   if (loading) {
     return (
       <ProtectedRoute>
@@ -711,6 +848,16 @@ export default function Dashboard() {
                 >
                   <Plus className="w-4 h-4" />
                   <span>Agregar Ingrediente</span>
+                </motion.button>
+
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={handleCreateRecipe}
+                  className="flex items-center space-x-2 bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-4 rounded-lg transition-all duration-200 shadow-medium"
+                >
+                  <FileText className="w-4 h-4" />
+                  <span>Crear Receta</span>
                 </motion.button>
 
                 {hasUnsavedChanges && (
@@ -1072,6 +1219,252 @@ export default function Dashboard() {
                   </button>
                 </div>
               </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Create Recipe Modal */}
+      <AnimatePresence>
+        {showCreateRecipeModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+            onClick={(e) => e.target === e.currentTarget && closeCreateRecipeModal()}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="bg-white rounded-2xl p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto shadow-strong"
+            >
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xl font-semibold text-gray-900">
+                  Nueva Receta Personalizada
+                </h3>
+                <button
+                  onClick={closeCreateRecipeModal}
+                  className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <form onSubmit={handleSaveCreateRecipe} className="space-y-6">
+                {/* Información básica de la receta */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Título de la Receta *
+                    </label>
+                    <input
+                      type="text"
+                      value={createRecipeFormData.title}
+                      onChange={(e) => setCreateRecipeFormData({ ...createRecipeFormData, title: e.target.value })}
+                      className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all duration-200"
+                      placeholder="Ej: Pasta Carbonara"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Dificultad
+                    </label>
+                    <select
+                      value={createRecipeFormData.difficulty}
+                      onChange={(e) => setCreateRecipeFormData({ ...createRecipeFormData, difficulty: e.target.value as 'Fácil' | 'Intermedio' | 'Difícil' })}
+                      className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all duration-200"
+                    >
+                      {difficulties.map((difficulty) => (
+                        <option key={difficulty.value} value={difficulty.value}>
+                          {difficulty.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Descripción *
+                  </label>
+                  <textarea
+                    value={createRecipeFormData.description}
+                    onChange={(e) => setCreateRecipeFormData({ ...createRecipeFormData, description: e.target.value })}
+                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all duration-200 resize-none"
+                    rows={3}
+                    placeholder="Describe brevemente la receta..."
+                    required
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Tiempo de Cocción (min)
+                    </label>
+                    <input
+                      type="number"
+                      value={createRecipeFormData.cookingTime}
+                      onChange={(e) => setCreateRecipeFormData({ ...createRecipeFormData, cookingTime: parseInt(e.target.value) || 30 })}
+                      className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all duration-200"
+                      min="1"
+                      max="300"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Porciones
+                    </label>
+                    <input
+                      type="number"
+                      value={createRecipeFormData.servings}
+                      onChange={(e) => setCreateRecipeFormData({ ...createRecipeFormData, servings: parseInt(e.target.value) || 4 })}
+                      className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all duration-200"
+                      min="1"
+                      max="20"
+                    />
+                  </div>
+                </div>
+
+                {/* Sección de ingredientes */}
+                <div>
+                  <div className="flex items-center justify-between mb-4">
+                    <h4 className="text-lg font-medium text-gray-900">
+                      Ingredientes ({createRecipeFormData.ingredients.length})
+                    </h4>
+                    <span className="text-sm text-gray-500">
+                      Haz clic en un ingrediente para agregarlo
+                    </span>
+                  </div>
+
+                  {/* Lista de ingredientes agregados */}
+                  {createRecipeFormData.ingredients.length > 0 && (
+                    <div className="mb-4 p-4 bg-gray-50 rounded-lg">
+                      <h5 className="font-medium text-gray-900 mb-2">Ingredientes seleccionados:</h5>
+                      <div className="space-y-2">
+                        {createRecipeFormData.ingredients.map((ingredient) => (
+                          <div key={ingredient.foodId} className="flex items-center justify-between bg-white p-3 rounded-lg border">
+                            <div className="flex items-center space-x-3">
+                              <div className="w-8 h-8 bg-primary-100 rounded-lg flex items-center justify-center">
+                                {renderIcon(allFoods.find(f => f.id === ingredient.foodId)?.icon || 'ChefHat', "w-4 h-4 text-primary-600")}
+                              </div>
+                              <span className="font-medium text-gray-900">{ingredient.name}</span>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <input
+                                type="number"
+                                value={ingredient.quantity}
+                                onChange={(e) => updateIngredientQuantity(ingredient.foodId, parseInt(e.target.value) || 1)}
+                                className="w-16 px-2 py-1 border border-gray-200 rounded text-center"
+                                min="1"
+                              />
+                              <span className="text-sm text-gray-500">{unitLabels[ingredient.unit as keyof typeof unitLabels]}</span>
+                              <button
+                                type="button"
+                                onClick={() => removeIngredientFromRecipe(ingredient.foodId)}
+                                className="p-1 text-red-500 hover:text-red-700 hover:bg-red-50 rounded transition-colors"
+                              >
+                                <X className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Grid de ingredientes disponibles */}
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 max-h-60 overflow-y-auto">
+                    {allFoods.map((food) => {
+                      const isAdded = createRecipeFormData.ingredients.some(ing => ing.foodId === food.id);
+                      return (
+                        <motion.button
+                          key={food.id}
+                          type="button"
+                          onClick={() => addIngredientToRecipe(food)}
+                          disabled={isAdded}
+                          whileHover={{ scale: isAdded ? 1 : 1.05 }}
+                          whileTap={{ scale: isAdded ? 1 : 0.95 }}
+                          className={`p-3 rounded-lg border-2 transition-all duration-200 ${
+                            isAdded 
+                              ? 'bg-green-50 border-green-200 cursor-not-allowed' 
+                              : 'bg-white border-gray-200 hover:border-primary-300 hover:bg-primary-50'
+                          }`}
+                        >
+                          <div className="flex flex-col items-center space-y-2">
+                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                              isAdded ? 'bg-green-100' : 'bg-gray-100'
+                            }`}>
+                              {renderIcon(food.icon || 'ChefHat', `w-4 h-4 ${isAdded ? 'text-green-600' : 'text-gray-600'}`)}
+                            </div>
+                            <span className={`text-xs font-medium text-center ${
+                              isAdded ? 'text-green-600' : 'text-gray-900'
+                            }`}>
+                              {food.name}
+                            </span>
+                            {isAdded && (
+                              <Check className="w-4 h-4 text-green-600" />
+                            )}
+                          </div>
+                        </motion.button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Instrucciones */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Instrucciones de Preparación *
+                  </label>
+                  <textarea
+                    value={createRecipeFormData.instructions}
+                    onChange={(e) => setCreateRecipeFormData({ ...createRecipeFormData, instructions: e.target.value })}
+                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all duration-200 resize-none"
+                    rows={6}
+                    placeholder="Describe paso a paso cómo preparar la receta..."
+                    required
+                  />
+                </div>
+
+                <div className="flex space-x-3 pt-4">
+                  <button
+                    type="button"
+                    onClick={closeCreateRecipeModal}
+                    className="flex-1 px-4 py-3 text-gray-600 hover:text-gray-800 transition-colors font-medium"
+                  >
+                    Cancelar
+                  </button>
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    type="submit"
+                    disabled={isCreatingRecipe}
+                    className="flex-1 flex items-center justify-center space-x-2 bg-purple-600 hover:bg-purple-700 disabled:bg-purple-300 disabled:text-purple-100 text-white font-medium py-3 px-4 rounded-lg transition-all duration-200"
+                  >
+                    {isCreatingRecipe ? (
+                      <>
+                        <motion.div
+                          animate={{ rotate: 360 }}
+                          transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                          className="w-4 h-4 border-2 border-white border-t-transparent rounded-full"
+                        />
+                        <span>Creando...</span>
+                      </>
+                    ) : (
+                      <>
+                        <FileText className="w-4 h-4" />
+                        <span>Crear Receta</span>
+                      </>
+                    )}
+                  </motion.button>
+                </div>
+              </form>
             </motion.div>
           </motion.div>
         )}

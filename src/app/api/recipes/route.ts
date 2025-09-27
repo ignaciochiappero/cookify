@@ -66,7 +66,8 @@ export async function GET(request: NextRequest) {
     });
 
     // Filtrar recetas que contengan TODOS los ingredientes especificados
-    const filteredRecipes = recipes.filter(recipe => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const filteredRecipes = recipes.filter((recipe: any) => {
       if (ingredients.length === 0) return true;
       
       try {
@@ -109,6 +110,77 @@ export async function GET(request: NextRequest) {
       {
         success: false,
         error: 'Error interno del servidor'
+      },
+      { status: 500 }
+    );
+  }
+}
+
+// POST /api/recipes - Crear nueva receta
+export async function POST(request: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions);
+
+    if (!session?.user?.id) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'No autorizado'
+        },
+        { status: 401 }
+      );
+    }
+
+    const body = await request.json();
+    const { title, description, instructions, cookingTime, difficulty, servings, ingredients } = body;
+
+    // Validar campos requeridos
+    if (!title || !description || !instructions) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Faltan campos requeridos: título, descripción e instrucciones'
+        },
+        { status: 400 }
+      );
+    }
+
+    if (!ingredients || ingredients.length === 0) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Debe incluir al menos un ingrediente'
+        },
+        { status: 400 }
+      );
+    }
+
+    // Crear la receta
+    const recipe = await prisma.recipe.create({
+      data: {
+        title,
+        description,
+        instructions,
+        cookingTime: cookingTime || 30,
+        difficulty: difficulty || 'Fácil',
+        servings: servings || 4,
+        ingredients: JSON.stringify(ingredients),
+        userId: session.user.id
+      }
+    });
+
+    return NextResponse.json({
+      success: true,
+      data: recipe,
+      message: 'Receta creada exitosamente'
+    });
+
+  } catch (error) {
+    console.error('Error al crear receta:', error);
+    return NextResponse.json(
+      {
+        success: false,
+        error: 'Error interno del servidor al crear receta'
       },
       { status: 500 }
     );

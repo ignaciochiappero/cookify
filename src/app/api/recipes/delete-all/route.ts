@@ -13,7 +13,8 @@ export async function DELETE() {
 
     console.log('🚀 DEBUG: Iniciando eliminación masiva de recetas...');
 
-    const result = await prisma.$transaction(async (tx) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const result = await prisma.$transaction(async (tx: any) => {
       // 1. Eliminar todas las entradas del calendario de comidas que referencian recetas
       const deletedCalendarEntries = await tx.mealCalendar.deleteMany({});
       console.log(`✅ DEBUG: ${deletedCalendarEntries.count} entradas del calendario eliminadas.`);

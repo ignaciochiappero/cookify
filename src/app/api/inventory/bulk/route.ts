@@ -114,7 +114,8 @@ export async function POST(request: NextRequest) {
       try {
         console.log(`🔍 DEBUG: Procesando ingrediente individual:`, item);
         
-        const result = await prisma.$transaction(async (tx) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const result = await prisma.$transaction(async (tx: any) => {
           const { foodId, quantity, unit, expirationDate, notes, foodName, category } = item;
           
           let actualFoodId = foodId;

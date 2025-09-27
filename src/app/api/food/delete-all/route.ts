@@ -25,7 +25,8 @@ export async function DELETE() {
     console.log('🗑️ DEBUG: Iniciando eliminación masiva de ingredientes...');
 
     // Eliminar todos los ingredientes usando una transacción
-    const result = await prisma.$transaction(async (tx) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const result = await prisma.$transaction(async (tx: any) => {
       // Primero eliminar todas las referencias en inventario
       const deletedInventory = await tx.userIngredientInventory.deleteMany({});
       console.log(`🗑️ DEBUG: Eliminados ${deletedInventory.count} elementos del inventario`);

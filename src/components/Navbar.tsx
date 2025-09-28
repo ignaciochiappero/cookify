@@ -14,6 +14,7 @@ import {
   X,
   Shield,
   Calendar,
+  CreditCard,
 } from "lucide-react";
 import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
@@ -77,6 +78,13 @@ export default function Navbar() {
                 >
                   <BookOpen className="w-4 h-4" />
                   <span>Recetas</span>
+                </Link>
+                <Link
+                  href="/plans"
+                  className="flex items-center space-x-2 px-4 py-2 text-gray-600 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all duration-200"
+                >
+                  <CreditCard className="w-4 h-4" />
+                  <span>Planes</span>
                 </Link>
               </>
             )}
@@ -187,6 +195,14 @@ export default function Navbar() {
                   >
                     <BookOpen className="w-5 h-5" />
                     <span>Recetas</span>
+                  </Link>
+                  <Link
+                    href="/plans"
+                    className="flex items-center space-x-2 px-4 py-3 text-gray-600 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all duration-200"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                  >
+                    <CreditCard className="w-5 h-5" />
+                    <span>Planes</span>
                   </Link>
                 </>
               )}

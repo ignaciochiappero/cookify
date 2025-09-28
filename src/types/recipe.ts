@@ -7,6 +7,8 @@ export interface Recipe {
   cookingTime?: number;
   difficulty?: string;
   servings?: number;
+  healthConditions?: string[];
+  customHealthConditions?: string[];
   userId: string;
   createdAt: Date;
   updatedAt: Date;

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { motion } from "framer-motion";
 import { Camera, Upload, CheckCircle, Plus, Trash2 } from "lucide-react";
 import { FoodUnit, FoodCategory } from "@/types/inventory";
@@ -13,15 +13,6 @@ interface DetectedIngredient {
   confidence: number;
 }
 
-interface Food {
-  id: string;
-  name: string;
-  description: string;
-  image: string;
-  icon?: string;
-  category: FoodCategory;
-  unit: FoodUnit;
-}
 
 interface ImageAnalyzerProps {
   onIngredientsDetected: (ingredients: DetectedIngredient[]) => void;
@@ -29,16 +20,16 @@ interface ImageAnalyzerProps {
   currentInventory: unknown[];
 }
 
-interface InventoryItem {
-  food?: {
-    name: string;
-    category: FoodCategory;
-  };
-  name?: string;
-  quantity: number;
-  unit: FoodUnit;
-  category?: FoodCategory;
-}
+// interface InventoryItem {
+//   food?: {
+//     name: string;
+//     category: FoodCategory;
+//   };
+//   name?: string;
+//   quantity: number;
+//   unit: FoodUnit;
+//   category?: FoodCategory;
+// }
 
 export default function ImageAnalyzer({
   onIngredientsDetected,
@@ -59,9 +50,9 @@ export default function ImageAnalyzer({
   const [planningDays, setPlanningDays] = useState(3);
   const [selectedMealTypes, setSelectedMealTypes] = useState<string[]>(['BREAKFAST', 'LUNCH', 'DINNER']);
   const [showIngredientReview, setShowIngredientReview] = useState(false);
-  const [editingIngredient, setEditingIngredient] = useState<number | null>(
-    null
-  );
+  // const [editingIngredient, setEditingIngredient] = useState<number | null>(
+  //   null
+  // );
   const [newIngredient, setNewIngredient] = useState<
     Partial<DetectedIngredient>
   >({});
@@ -357,7 +348,7 @@ export default function ImageAnalyzer({
             let errorText = "";
             try {
               errorText = await response.text();
-            } catch (textError) {
+            } catch {
               errorText = "No se pudo obtener el texto de error";
             }
             
@@ -372,7 +363,7 @@ export default function ImageAnalyzer({
             try {
               const errorJson = JSON.parse(errorText);
               console.error(`❌ DEBUG: Error JSON para ${mealType}:`, errorJson);
-            } catch (jsonError) {
+            } catch {
               console.error(`❌ DEBUG: Error no es JSON para ${mealType}:`, errorText);
             }
           }
@@ -445,13 +436,13 @@ export default function ImageAnalyzer({
     }
   };
 
-  const startEditing = (index: number) => {
-    setEditingIngredient(index);
-  };
+  // const startEditing = (index: number) => {
+  //   setEditingIngredient(index);
+  // };
 
-  const saveEdit = (index: number) => {
-    setEditingIngredient(null);
-  };
+  // const saveEdit = (index: number) => {
+  //   setEditingIngredient(null);
+  // };
 
   const editDetectedIngredient = (
     index: number,

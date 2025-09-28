@@ -22,6 +22,8 @@ export interface RecipeCreationOptions {
   customServings?: number;
   customCookingTime?: number;
   customDifficulty?: string;
+  healthConditions?: string[];
+  customHealthConditions?: string[];
 }
 
 export interface RecipeResponse {
@@ -66,6 +68,11 @@ export async function createRecipe(
     const finalDifficulty = options.customDifficulty || recipeData.difficulty;
 
     // Crear receta en la base de datos
+    console.log("🔍 DEBUG: Guardando receta con patologías:", {
+      healthConditions: options.healthConditions || [],
+      customHealthConditions: options.customHealthConditions || [],
+    });
+    
     const recipe = await prisma.recipe.create({
       data: {
         title: finalTitle,
@@ -75,8 +82,17 @@ export async function createRecipe(
         cookingTime: finalCookingTime,
         difficulty: finalDifficulty,
         servings: finalServings,
+        healthConditions: options.healthConditions || [],
+        customHealthConditions: options.customHealthConditions || [],
         userId: options.userId,
       },
+    });
+    
+    console.log("🔍 DEBUG: Receta creada exitosamente:", {
+      id: recipe.id,
+      title: recipe.title,
+      healthConditions: recipe.healthConditions,
+      customHealthConditions: recipe.customHealthConditions,
     });
 
     return {

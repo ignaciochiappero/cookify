@@ -15,21 +15,20 @@ import {
   Minus,
   Package,
   X,
-  Timer,
-  Users,
-  Target,
   BookOpen,
   Trash2,
   Edit,
   Check,
   FileText,
-  List
 } from 'lucide-react';
 import Confetti from 'react-confetti';
 import { Food } from '@/types/food';
 import { RecipeIngredient } from '@/types/recipe';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import Navbar from '@/components/Navbar';
+import RecipeCard from '@/components/RecipeCard';
+import UserPreferencesDebug from '@/components/UserPreferencesDebug';
+import { UserPreferences } from '@/types/user-preferences';
 import { renderIcon } from '@/lib/iconUtils';
 
 
@@ -39,6 +38,7 @@ export default function Dashboard() {
   const [allFoods, setAllFoods] = useState<Food[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [userPreferences, setUserPreferences] = useState<UserPreferences | null>(null);
   const [generatingRecipe, setGeneratingRecipe] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
@@ -54,6 +54,11 @@ export default function Dashboard() {
     cookingTime: number;
     difficulty: string;
     servings: number;
+    healthConditions?: string[];
+    customHealthConditions?: string[];
+    userId: string;
+    createdAt: Date;
+    updatedAt: Date;
   } | null>(null);
   const [showConfetti, setShowConfetti] = useState(false);
   const [windowDimensions, setWindowDimensions] = useState({ width: 0, height: 0 });
@@ -144,6 +149,39 @@ export default function Dashboard() {
       fetchData();
     }
   }, [session]);
+
+  // Cargar preferencias del usuario
+  useEffect(() => {
+    const fetchUserPreferences = async () => {
+      try {
+        console.log('🔍 DEBUG: Dashboard - Cargando preferencias del usuario...');
+        const response = await fetch('/api/user/preferences');
+        console.log('🔍 DEBUG: Dashboard - Respuesta de preferencias:', response.status);
+        
+        if (response.ok) {
+          const preferences = await response.json();
+          console.log('🔍 DEBUG: Dashboard - Preferencias cargadas:', preferences);
+          setUserPreferences(preferences);
+        } else {
+          console.log('🔍 DEBUG: Dashboard - Error cargando preferencias:', response.status);
+        }
+      } catch (error) {
+        console.error('Error cargando preferencias del usuario:', error);
+      }
+    };
+
+    if (session) {
+      fetchUserPreferences();
+    }
+  }, [session]);
+
+  // DEBUG: Monitorear cambios en los estados del modal
+  useEffect(() => {
+    console.log('🔍 DEBUG: Dashboard - Estados del modal cambiaron:');
+    console.log('🔍 DEBUG: Dashboard - showRecipeModal:', showRecipeModal);
+    console.log('🔍 DEBUG: Dashboard - generatedRecipe:', generatedRecipe);
+    console.log('🔍 DEBUG: Dashboard - Condición del modal:', showRecipeModal && generatedRecipe);
+  }, [showRecipeModal, generatedRecipe]);
 
   useEffect(() => {
     const updateDimensions = () => {
@@ -353,27 +391,82 @@ export default function Dashboard() {
     try {
       setGeneratingRecipe(true);
       
-      const response = await fetch('/api/recipes/generate', {
+      const response = await fetch('/api/recipes/generate-from-inventory', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          ingredients: selectedIngredients
+          ingredients: selectedIngredients,
+          mealType: 'LUNCH', // Agregar mealType por defecto
+          servings: 4,
+          suggestIngredients: false
         }),
       });
 
       const result = await response.json();
 
       if (result.success) {
+        console.log('🔍 DEBUG: Dashboard - Receta generada exitosamente:', result);
+        console.log('🔍 DEBUG: Dashboard - result.data:', result.data);
+        console.log('🔍 DEBUG: Dashboard - result.data.recipe:', result.data?.recipe);
+        console.log('🔍 DEBUG: Dashboard - result keys:', Object.keys(result));
+        console.log('🔍 DEBUG: Dashboard - result.data keys:', result.data ? Object.keys(result.data) : 'null');
+        
         // Mostrar confetti
         setShowConfetti(true);
         setTimeout(() => setShowConfetti(false), 5000);
         
-        // Mostrar modal con la receta
-        setGeneratedRecipe(result.data);
+        // Mostrar modal con la receta - SOLUCIÓN CRÍTICA
+        console.log('🔍 DEBUG: Dashboard - Estableciendo generatedRecipe...');
+        
+        // DEBUGGING: Verificar todas las posibles estructuras
+        let recipeData = null;
+        
+        if (result.data?.recipe) {
+          recipeData = result.data.recipe;
+          console.log('🔍 DEBUG: Dashboard - Usando result.data.recipe');
+        } else if (result.data) {
+          recipeData = result.data;
+          console.log('🔍 DEBUG: Dashboard - Usando result.data');
+        } else if (result.recipe) {
+          recipeData = result.recipe;
+          console.log('🔍 DEBUG: Dashboard - Usando result.recipe');
+        } else {
+          console.log('🔍 DEBUG: Dashboard - Estructura no reconocida, usando result completo');
+          recipeData = result;
+        }
+        
+        console.log('🔍 DEBUG: Dashboard - recipeData final:', recipeData);
+        console.log('🔍 DEBUG: Dashboard - recipeData type:', typeof recipeData);
+        console.log('🔍 DEBUG: Dashboard - recipeData keys:', recipeData ? Object.keys(recipeData) : 'null');
+        
+        // VERIFICAR QUE recipeData NO SEA NULL
+        if (!recipeData) {
+          console.error('🔍 DEBUG: Dashboard - ERROR: recipeData es null/undefined');
+          console.error('🔍 DEBUG: Dashboard - result completo:', JSON.stringify(result, null, 2));
+          alert('Error: No se pudo obtener la receta generada');
+          return;
+        }
+        
+        // ESTABLECER AMBOS ESTADOS AL MISMO TIEMPO
+        console.log('🔍 DEBUG: Dashboard - Llamando setGeneratedRecipe con:', recipeData);
+        setGeneratedRecipe(recipeData);
+        console.log('🔍 DEBUG: Dashboard - Llamando setShowRecipeModal con true');
         setShowRecipeModal(true);
+        
+        console.log('🔍 DEBUG: Dashboard - Modal configurado para mostrarse');
+        console.log('🔍 DEBUG: Dashboard - showRecipeModal:', true);
+        console.log('🔍 DEBUG: Dashboard - generatedRecipe:', recipeData);
+        
+        // VERIFICAR ESTADOS DESPUÉS DE UN MOMENTO
+        setTimeout(() => {
+          console.log('🔍 DEBUG: Dashboard - Verificación después de 100ms:');
+          console.log('🔍 DEBUG: Dashboard - showRecipeModal actual:', showRecipeModal);
+          console.log('🔍 DEBUG: Dashboard - generatedRecipe actual:', generatedRecipe);
+        }, 100);
       } else {
+        console.log('🔍 DEBUG: Dashboard - Error en la respuesta:', result.error);
         alert(result.error || 'Error al generar la receta');
       }
     } catch {
@@ -769,6 +862,9 @@ export default function Dashboard() {
             </p>
           </motion.div>
 
+          {/* Debug Component */}
+          <UserPreferencesDebug />
+
           {/* Stats Cards */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -1100,6 +1196,12 @@ export default function Dashboard() {
       )}
 
       {/* Recipe Modal */}
+      {(() => {
+        console.log('🔍 DEBUG: Modal renderizado - showRecipeModal:', showRecipeModal);
+        console.log('🔍 DEBUG: Modal renderizado - generatedRecipe:', !!generatedRecipe);
+        console.log('🔍 DEBUG: Modal renderizado - Condición:', showRecipeModal && generatedRecipe);
+        return null;
+      })()}
       <AnimatePresence>
         {showRecipeModal && generatedRecipe && (
           <motion.div
@@ -1137,87 +1239,39 @@ export default function Dashboard() {
               </div>
 
               {/* Recipe Content */}
-              <div className="space-y-6">
-                {/* Recipe Header */}
-                <div className="bg-gradient-to-r from-primary-500 to-primary-600 p-6 rounded-2xl text-white">
-                  <h2 className="text-3xl font-bold mb-2">{generatedRecipe.title}</h2>
-                  <p className="text-primary-100 text-lg">{generatedRecipe.description}</p>
-                  
-                  {/* Recipe Meta */}
-                  <div className="flex flex-wrap gap-4 mt-4">
-                    {generatedRecipe.cookingTime && (
-                      <div className="flex items-center space-x-2 bg-white/20 backdrop-blur-sm rounded-lg px-3 py-2">
-                        <Clock className="w-5 h-5" />
-                        <span className="font-medium">{generatedRecipe.cookingTime} min</span>
-                      </div>
-                    )}
-                    
-                    {generatedRecipe.servings && (
-                      <div className="flex items-center space-x-2 bg-white/20 backdrop-blur-sm rounded-lg px-3 py-2">
-                        <Users className="w-5 h-5" />
-                        <span className="font-medium">{generatedRecipe.servings} porciones</span>
-                      </div>
-                    )}
-                    
-                    {generatedRecipe.difficulty && (
-                      <div className="flex items-center space-x-2 bg-white/20 backdrop-blur-sm rounded-lg px-3 py-2">
-                        <Target className="w-5 h-5" />
-                        <span className="font-medium">{generatedRecipe.difficulty}</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
+              {(() => {
+                console.log('🔍 DEBUG: Dashboard - Pasando al RecipeCard:', {
+                  userPreferences,
+                  hasUserPreferences: !!userPreferences,
+                  healthConditions: userPreferences?.healthConditions,
+                  customHealthConditions: userPreferences?.customHealthConditions
+                });
+                return null;
+              })()}
+              <RecipeCard 
+                recipe={generatedRecipe}
+                showHealthConditions={true}
+                userPreferences={userPreferences}
+              />
 
-                {/* Ingredients */}
-                <div>
-                  <h4 className="font-semibold text-gray-900 mb-3 flex items-center text-lg">
-                    <ChefHat className="w-5 h-5 mr-2 text-primary-600" />
-                    Ingredientes
-                  </h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {JSON.parse(generatedRecipe.ingredients).map((ingredient: { name: string }, idx: number) => (
-                      <div
-                        key={idx}
-                        className="bg-primary-50 border border-primary-200 rounded-lg p-3"
-                      >
-                        <span className="text-primary-800 font-medium">{ingredient.name}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Instructions */}
-                <div>
-                  <h4 className="font-semibold text-gray-900 mb-3 flex items-center text-lg">
-                    <Timer className="w-5 h-5 mr-2 text-primary-600" />
-                    Preparación
-                  </h4>
-                  <div className="bg-gray-50 rounded-xl p-6">
-                    <p className="text-gray-800 leading-relaxed whitespace-pre-line">
-                      {generatedRecipe.instructions}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Actions */}
-                <div className="flex space-x-4 pt-4">
-                  <button
-                    onClick={closeRecipeModal}
-                    className="flex-1 px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
-                  >
-                    Cerrar
-                  </button>
-                  <button
-                    onClick={() => {
-                      closeRecipeModal();
-                      window.location.href = '/recipes';
-                    }}
-                    className="flex-1 px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors font-medium flex items-center justify-center space-x-2"
-                  >
-                    <BookOpen className="w-5 h-5" />
-                    <span>Ver Todas las Recetas</span>
-                  </button>
-                </div>
+              {/* Actions */}
+              <div className="flex space-x-4 pt-4">
+                <button
+                  onClick={closeRecipeModal}
+                  className="flex-1 px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+                >
+                  Cerrar
+                </button>
+                <button
+                  onClick={() => {
+                    closeRecipeModal();
+                    window.location.href = '/recipes';
+                  }}
+                  className="flex-1 px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors font-medium flex items-center justify-center space-x-2"
+                >
+                  <BookOpen className="w-5 h-5" />
+                  <span>Ver Todas las Recetas</span>
+                </button>
               </div>
             </motion.div>
           </motion.div>

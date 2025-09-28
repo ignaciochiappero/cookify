@@ -16,6 +16,7 @@ import MealCalendar from '@/components/MealCalendar';
 import RecipeGenerator from '@/components/RecipeGenerator';
 import { IngredientInventory, FoodCategory, FoodUnit } from '@/types/inventory';
 import { Recipe } from '@/types/recipe';
+import { UserPreferences } from '@/types/user-preferences';
 
 interface Food {
   id: string;
@@ -33,6 +34,7 @@ export default function MealPlanner() {
   const [inventory, setInventory] = useState<IngredientInventory[]>([]);
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [userPreferences, setUserPreferences] = useState<UserPreferences | null>(null);
 
   useEffect(() => {
     fetchData();
@@ -40,10 +42,11 @@ export default function MealPlanner() {
 
   const fetchData = async () => {
     try {
-      const [foodsResponse, inventoryResponse, recipesResponse] = await Promise.all([
+      const [foodsResponse, inventoryResponse, recipesResponse, preferencesResponse] = await Promise.all([
         fetch('/api/food'),
         fetch('/api/inventory'),
-        fetch('/api/recipes')
+        fetch('/api/recipes'),
+        fetch('/api/user/preferences')
       ]);
 
       if (foodsResponse.ok) {
@@ -63,6 +66,11 @@ export default function MealPlanner() {
       if (recipesResponse.ok) {
         const recipesData = await recipesResponse.json();
         setRecipes(recipesData.data || []);
+      }
+
+      if (preferencesResponse.ok) {
+        const preferencesData = await preferencesResponse.json();
+        setUserPreferences(preferencesData);
       }
     } catch (error) {
       console.error('Error al cargar datos:', error);
@@ -244,6 +252,7 @@ export default function MealPlanner() {
                   <RecipeGenerator 
                     inventory={inventory} 
                     onRecipeGenerated={handleRecipeGenerated}
+                    userPreferences={userPreferences}
                   />
                 )}
               </motion.div>

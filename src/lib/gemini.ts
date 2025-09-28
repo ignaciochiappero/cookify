@@ -3,6 +3,7 @@ import { RecipeIngredient, GeneratedRecipe } from "@/types/recipe";
 import { FOOD_UNIT_ABBREVIATIONS } from "@/types/inventory";
 import { FoodUnit as PrismaFoodUnit } from "../generated/prisma";
 import { MealType, MEAL_TYPE_LABELS } from "@/types/meal-calendar";
+import { UserPreferences } from "@/types/user-preferences";
 import {
   model,
 } from "./ai-provider";
@@ -27,7 +28,7 @@ function parseModelResponse(text: string): unknown {
     // Intentar parsear como JSON
     try {
       return JSON.parse(cleanText);
-    } catch (jsonError) {
+    } catch {
       // Si falla el JSON, parsear como Markdown
       return parseMarkdownResponse(text);
     }
@@ -171,27 +172,49 @@ function parseMarkdownResponse(text: string): unknown {
     const servingsText = servingsMatch ? servingsMatch[1] : "4";
     const servings = extractServings(servingsText);
 
-    // Extraer instrucciones - mejorar el regex para capturar todo el contenido
-    let instructionsMatch = text.match(
-      /\*\*Instrucciones:\*\*\s*([\s\S]*?)(?=\*\*|$)/
-    );
+    // Extraer instrucciones - SOLUCIÓN URGENTE DEFINITIVA
+    console.log("🔍 DEBUG: Buscando instrucciones en el texto...");
+    
+    // SOLUCIÓN CRÍTICA: Usar SOLO regex greedy para capturar TODO
+    let instructionsMatch = text.match(/\*\*Instrucciones:\*\*\s*([\s\S]*)/);
+    console.log("🔍 DEBUG: Primer intento (greedy con **):", !!instructionsMatch);
+    
     if (!instructionsMatch) {
-      instructionsMatch = text.match(/Instrucciones:\s*([\s\S]*?)(?=\*\*|$)/);
+      instructionsMatch = text.match(/Instrucciones:\s*([\s\S]*)/);
+      console.log("🔍 DEBUG: Segundo intento (greedy sin **):", !!instructionsMatch);
     }
     if (!instructionsMatch) {
-      // Buscar instrucciones numeradas
+      // SOLUCIÓN CRÍTICA: Capturar cualquier lista numerada completa (GREEDY)
       instructionsMatch = text.match(/(\d+\.\s*[\s\S]*)/);
+      console.log("🔍 DEBUG: Tercer intento (lista numerada):", !!instructionsMatch);
+    }
+    if (!instructionsMatch) {
+      // SOLUCIÓN CRÍTICA: Buscar cualquier texto que contenga "1." seguido de contenido
+      instructionsMatch = text.match(/(\d+\.\s*[^]*)/);
+      console.log("🔍 DEBUG: Cuarto intento (cualquier 1.):", !!instructionsMatch);
     }
 
     let instructions = instructionsMatch
       ? instructionsMatch[1].trim()
       : "Sigue las instrucciones paso a paso.";
 
+    console.log("🔍 DEBUG: Instrucciones extraídas (antes de limpiar):", instructions.substring(0, 200) + "...");
+    console.log("🔍 DEBUG: Longitud de instrucciones:", instructions.length);
+    console.log("🔍 DEBUG: Match encontrado:", !!instructionsMatch);
+    if (instructionsMatch) {
+      console.log("🔍 DEBUG: Match completo:", instructionsMatch[0].substring(0, 100) + "...");
+      console.log("🔍 DEBUG: Match capturado:", instructionsMatch[1].substring(0, 100) + "...");
+      console.log("🔍 DEBUG: Longitud del match capturado:", instructionsMatch[1].length);
+    }
+
     // Limpiar las instrucciones de caracteres extraños
     instructions = instructions
       .replace(/\*\*/g, "") // Remover **
       .replace(/\*/g, "") // Remover *
       .trim();
+
+    console.log("🔍 DEBUG: Instrucciones finales:", instructions.substring(0, 200) + "...");
+    console.log("🔍 DEBUG: Longitud final:", instructions.length);
 
     console.log("Datos extraídos:", {
       title,
@@ -418,10 +441,11 @@ export async function generateRecipeWithInventory(
     customDescription?: string;
     preferredIngredients?: string[];
     userId?: string; // Necesario para buscar recetas existentes
+    userPreferences?: UserPreferences | null; // Preferencias del usuario
   }
 ): Promise<GeneratedRecipeWithInventory> {
   // Extraer opciones
-  const { image, customTitle, customDescription, preferredIngredients, userId } =
+  const { image, customTitle, customDescription, preferredIngredients, userId, userPreferences } =
     options || {};
 
   // Sistema de reintentos para manejar sobrecarga de API
@@ -610,6 +634,56 @@ INSTRUCCIONES PARA EVITAR REPETICIÓN:
 
       const mealTypeLabel = MEAL_TYPE_LABELS[mealType];
 
+      // Crear contexto de preferencias del usuario
+      let userPreferencesContext = "";
+      if (userPreferences) {
+        userPreferencesContext = `
+
+INFORMACIÓN DE SALUD DEL USUARIO:
+${userPreferences.healthConditions.length > 0 ? `- Condiciones de salud: ${userPreferences.healthConditions.join(", ")}` : ""}
+${userPreferences.customHealthConditions.length > 0 ? `- Otras condiciones: ${userPreferences.customHealthConditions.join(", ")}` : ""}
+
+OBJETIVOS PERSONALES:
+${userPreferences.personalGoals.length > 0 ? `- Objetivos: ${userPreferences.personalGoals.join(", ")}` : ""}
+${userPreferences.customPersonalGoals.length > 0 ? `- Otros objetivos: ${userPreferences.customPersonalGoals.join(", ")}` : ""}
+
+PREFERENCIAS DE COCINA:
+- Nivel de cocina: ${userPreferences.cookingSkill}
+- Tiempo disponible: ${userPreferences.cookingTime}
+- Personas para cocinar: ${userPreferences.servings}
+${userPreferences.country ? `- País: ${userPreferences.country}` : ""}
+
+INSTRUCCIONES CRÍTICAS DE SALUD:
+- SI el usuario tiene condiciones de salud, ADAPTA la receta para esas condiciones
+- SI el usuario tiene diabetes, evita azúcares simples y carbohidratos refinados
+- SI el usuario tiene celiaquía, NO uses ingredientes con gluten
+- SI el usuario tiene presión alta, reduce la sal y usa especias naturales
+- SI el usuario tiene colesterol alto, evita grasas saturadas
+- SI el usuario tiene intolerancia a la lactosa, NO uses lácteos
+- SIEMPRE prioriza la salud del usuario sobre el sabor
+
+INSTRUCCIONES DE OBJETIVOS:
+- SI el usuario quiere bajar de peso, crea recetas bajas en calorías
+- SI el usuario quiere subir de peso, incluye ingredientes nutritivos y calóricos
+- SI el usuario quiere comer más saludable, prioriza ingredientes naturales y nutritivos
+- SI el usuario quiere ganar masa muscular, incluye proteínas de calidad
+
+INSTRUCCIONES DE COCINA:
+- SI el usuario tiene poco tiempo, crea recetas rápidas (máximo 15 minutos)
+- SI el usuario tiene mucho tiempo, puedes crear recetas más elaboradas
+- SI el usuario tiene poca experiencia, usa técnicas simples
+- SI el usuario tiene mucha experiencia, puedes usar técnicas avanzadas
+
+INSTRUCCIONES DE PORCIONES:
+- Calcula las porciones para exactamente ${userPreferences.servings} personas
+- Ajusta las cantidades de ingredientes proporcionalmente
+
+INSTRUCCIONES REGIONALES:
+${userPreferences.country ? `- Incluye ingredientes y técnicas típicas de ${userPreferences.country}` : ""}
+- Usa nombres de ingredientes en español
+- Incluye técnicas de cocina locales si es apropiado`;
+      }
+
       let prompt = `Necesito que me crees una receta para ${mealTypeLabel.toLowerCase()} utilizando ÚNICAMENTE estos ingredientes preseleccionados:
 
 ${preselectedInventoryText}
@@ -625,6 +699,13 @@ ${
 }
 
 ${existingRecipesContext}
+${userPreferencesContext}
+
+INSTRUCCIONES ESPECIALES PARA LA RECETA:
+- Al inicio de las instrucciones, menciona sutilmente que esta receta es ideal para personas con las condiciones de salud del usuario
+- Usa un tono profesional y médico, pero sin ser alarmante
+- Enfócate en los beneficios nutricionales específicos para sus condiciones
+- Menciona técnicas de cocción que sean beneficiosas para su salud
 
 REGLAS ESPECÍFICAS PARA ${mealTypeLabel.toUpperCase()}:
 ${mealType === 'BREAKFAST' ? `

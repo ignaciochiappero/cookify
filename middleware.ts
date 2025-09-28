@@ -10,6 +10,8 @@ export default withAuth(
     const isRecipesPage = req.nextUrl.pathname.startsWith('/recipes');
     const isMealPlannerPage = req.nextUrl.pathname.startsWith('/meal-planner');
     const isAdminPage = req.nextUrl.pathname.startsWith('/admin');
+    const isOnboardingPage = req.nextUrl.pathname.startsWith('/onboarding');
+    const isProfilePage = req.nextUrl.pathname.startsWith('/profile');
 
     // Si está en página de auth y ya está autenticado, redirigir al dashboard
     if (isAuthPage && isAuth) {
@@ -17,7 +19,7 @@ export default withAuth(
     }
 
     // Si no está autenticado y trata de acceder a páginas protegidas
-    if (!isAuth && (isDashboardPage || isRecipesPage || isMealPlannerPage || isAdminPage)) {
+    if (!isAuth && (isDashboardPage || isRecipesPage || isMealPlannerPage || isAdminPage || isOnboardingPage || isProfilePage)) {
       return NextResponse.redirect(new URL('/auth/signin', req.url));
     }
 
@@ -36,6 +38,8 @@ export default withAuth(
         const isRecipesPage = req.nextUrl.pathname.startsWith('/recipes');
         const isMealPlannerPage = req.nextUrl.pathname.startsWith('/meal-planner');
         const isAdminPage = req.nextUrl.pathname.startsWith('/admin');
+        const isOnboardingPage = req.nextUrl.pathname.startsWith('/onboarding');
+        const isProfilePage = req.nextUrl.pathname.startsWith('/profile');
 
         // Permitir acceso a páginas de auth sin token
         if (isAuthPage) {
@@ -43,7 +47,7 @@ export default withAuth(
         }
 
         // Requerir token para páginas protegidas
-        if (isDashboardPage || isRecipesPage || isMealPlannerPage) {
+        if (isDashboardPage || isRecipesPage || isMealPlannerPage || isOnboardingPage || isProfilePage) {
           return !!token;
         }
 

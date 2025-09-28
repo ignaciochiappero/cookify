@@ -80,6 +80,9 @@ model User {
   // Relación con calendario de comidas
   mealCalendar MealCalendar[]
   
+  // Relación con preferencias de usuario
+  userPreferences UserPreferences?
+  
   // Relación con sesiones de NextAuth
   accounts Account[]
   sessions Session[]
@@ -108,6 +111,8 @@ model Recipe {
   cookingTime Int? // en minutos
   difficulty String? // Fácil, Medio, Difícil
   servings Int? // número de porciones
+  healthConditions String[] // Array de condiciones de salud para las que es ideal esta receta
+  customHealthConditions String[] // Array de condiciones de salud personalizadas
   userId String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -201,4 +206,32 @@ enum MealType {
   LUNCH
   SNACK
   DINNER
+}
+
+// Modelo para preferencias del usuario
+model UserPreferences {
+  id String @id @default(uuid())
+  userId String @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Información de salud
+  healthConditions String[] // Array de condiciones de salud
+  customHealthConditions String[] // Condiciones personalizadas del usuario
+  
+  // Objetivos personales
+  personalGoals String[] // Array de objetivos personales
+  customPersonalGoals String[] // Objetivos personalizados del usuario
+  
+  // Preferencias de cocina
+  cookingSkill String // "mucho", "mas_o_menos", "poco"
+  cookingTime String // "mucho", "mas_o_menos", "poco"
+  
+  // Información demográfica
+  servings Int // Número de personas para las que cocina
+  country String? // País del usuario
+  locationEnabled Boolean @default(false) // Si permite acceso a ubicación
+  
+  // Relación con el usuario
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

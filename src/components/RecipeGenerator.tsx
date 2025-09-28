@@ -1,13 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
 import {
   Sparkles,
   ChefHat,
-  Clock,
-  Users,
-  Star,
   Plus,
   AlertCircle,
   Camera,
@@ -19,22 +16,29 @@ import {
 } from "@/types/meal-calendar";
 import { IngredientInventory } from "@/types/inventory";
 import { Recipe } from "@/types/recipe";
+import { UserPreferences } from "@/types/user-preferences";
 import ImageAnalyzer from "./ImageAnalyzer";
+import RecipeCard from "./RecipeCard";
 
 interface RecipeGeneratorProps {
   inventory: IngredientInventory[];
   onRecipeGenerated: (recipe: Recipe) => void;
+  userPreferences?: UserPreferences | null;
 }
 
 export default function RecipeGenerator({
   inventory,
   onRecipeGenerated,
+  userPreferences: propUserPreferences,
 }: RecipeGeneratorProps) {
+  console.log('🔍 DEBUG: RecipeGenerator - Componente renderizado');
+  
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedRecipe, setGeneratedRecipe] = useState<Recipe | null>(null);
   const [suggestedIngredients, setSuggestedIngredients] = useState<string[]>(
     []
   );
+  const [userPreferences, setUserPreferences] = useState<UserPreferences | null>(null);
   const [formData, setFormData] = useState({
     mealType: MealType.LUNCH,
     servings: 4,
@@ -45,6 +49,39 @@ export default function RecipeGenerator({
 
   // Asegurar que inventory sea siempre un array
   const safeInventory = Array.isArray(inventory) ? inventory : [];
+
+  // Estabilizar la referencia de propUserPreferences
+  const stablePropUserPreferences = useMemo(() => propUserPreferences, [propUserPreferences]);
+
+  // Cargar preferencias del usuario (solo si no se pasan como prop)
+  useEffect(() => {
+    if (stablePropUserPreferences) {
+      setUserPreferences(stablePropUserPreferences);
+      return;
+    }
+
+    const fetchUserPreferences = async () => {
+      try {
+        console.log('🔍 DEBUG: RecipeGenerator - Cargando preferencias del usuario...');
+        const response = await fetch('/api/user/preferences');
+        console.log('🔍 DEBUG: RecipeGenerator - Respuesta de preferencias:', response.status);
+        
+        if (response.ok) {
+          const preferences = await response.json();
+          console.log('🔍 DEBUG: RecipeGenerator - Preferencias cargadas:', preferences);
+          console.log('🔍 DEBUG: RecipeGenerator - Health conditions cargadas:', preferences?.healthConditions);
+          console.log('🔍 DEBUG: RecipeGenerator - Custom health conditions cargadas:', preferences?.customHealthConditions);
+          setUserPreferences(preferences);
+        } else {
+          console.log('🔍 DEBUG: RecipeGenerator - Error cargando preferencias:', response.status);
+        }
+      } catch (error) {
+        console.error('Error cargando preferencias del usuario:', error);
+      }
+    };
+
+    fetchUserPreferences();
+  }, [stablePropUserPreferences]);
 
   const handleGenerate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -284,31 +321,6 @@ export default function RecipeGenerator({
     }
   };
 
-  const getDifficultyColor = (difficulty?: string) => {
-    switch (difficulty?.toLowerCase()) {
-      case "fácil":
-        return "text-green-600 bg-green-100";
-      case "medio":
-        return "text-yellow-600 bg-yellow-100";
-      case "difícil":
-        return "text-red-600 bg-red-100";
-      default:
-        return "text-gray-600 bg-gray-100";
-    }
-  };
-
-  const getDifficultyIcon = (difficulty?: string) => {
-    switch (difficulty?.toLowerCase()) {
-      case "fácil":
-        return "⭐";
-      case "medio":
-        return "⭐⭐";
-      case "difícil":
-        return "⭐⭐⭐";
-      default:
-        return "⭐";
-    }
-  };
 
   // Mostrar mensaje de inventario vacío solo si no hay analizador de imágenes activo
   if (safeInventory.length === 0 && !showImageAnalyzer) {
@@ -509,72 +521,32 @@ export default function RecipeGenerator({
 
       {/* Generated Recipe */}
       {generatedRecipe && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="bg-white rounded-2xl shadow-strong border border-primary-200 overflow-hidden"
-        >
-          {/* Recipe Header */}
-          <div className="bg-gradient-to-r from-primary-500 to-primary-600 p-6 text-white">
-            <div className="flex items-start justify-between mb-4">
-              <div className="flex-1">
-                <h3 className="text-2xl font-bold mb-2">
-                  {generatedRecipe.title}
-                </h3>
-                <p className="text-primary-100 text-sm">
-                  {generatedRecipe.description}
-                </p>
-              </div>
-              <div className="flex items-center space-x-2">
-                <span className="text-2xl">🍽️</span>
-              </div>
-            </div>
-
-            {/* Recipe Meta */}
-            <div className="grid grid-cols-3 gap-4">
-              <div className="flex items-center space-x-2">
-                <Clock className="w-4 h-4" />
-                <span className="text-sm">
-                  {generatedRecipe.cookingTime} min
-                </span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Users className="w-4 h-4" />
-                <span className="text-sm">
-                  {generatedRecipe.servings} porciones
-                </span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Star className="w-4 h-4" />
-                <span className="text-sm">
-                  {getDifficultyIcon(generatedRecipe.difficulty)}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* Recipe Content */}
-          <div className="p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h4 className="text-lg font-semibold text-gray-900">
-                Instrucciones
-              </h4>
-              <span
-                className={`px-3 py-1 rounded-full text-sm font-medium ${getDifficultyColor(
-                  generatedRecipe.difficulty
-                )}`}
-              >
-                {generatedRecipe.difficulty}
-              </span>
-            </div>
-
-            <div className="prose prose-sm max-w-none">
-              <p className="text-gray-800 whitespace-pre-line leading-relaxed">
-                {generatedRecipe.instructions}
-              </p>
-            </div>
-          </div>
-        </motion.div>
+        <>
+          {(() => {
+            console.log('🔍 DEBUG: Mostrando receta generada:', {
+              generatedRecipe,
+              userPreferences,
+              hasHealthConditions: (userPreferences?.healthConditions?.length || 0) > 0,
+              hasCustomHealthConditions: (userPreferences?.customHealthConditions?.length || 0) > 0,
+              shouldShowHealthConditions: userPreferences && ((userPreferences.healthConditions?.length || 0) > 0 || (userPreferences.customHealthConditions?.length || 0) > 0)
+            });
+            return null;
+          })()}
+          {(() => {
+            console.log('🔍 DEBUG: Pasando al RecipeCard:', {
+              userPreferences,
+              hasUserPreferences: !!userPreferences,
+              healthConditions: userPreferences?.healthConditions,
+              customHealthConditions: userPreferences?.customHealthConditions
+            });
+            return null;
+          })()}
+          <RecipeCard 
+            recipe={generatedRecipe}
+            showHealthConditions={true}
+            userPreferences={userPreferences}
+          />
+        </>
       )}
 
       {/* Suggested Ingredients */}

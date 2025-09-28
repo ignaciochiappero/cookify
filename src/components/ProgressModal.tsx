@@ -28,7 +28,6 @@ export default function ProgressModal({
   title,
   description,
   steps,
-  currentStep,
   showCloseButton = true,
   allowCloseOnComplete = true,
 }: ProgressModalProps) {

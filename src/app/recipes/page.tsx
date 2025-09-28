@@ -5,16 +5,11 @@ import { useEffect, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   BookOpen, 
-  Clock, 
-  Users, 
   ChefHat, 
   Sparkles, 
-  Calendar,
   ArrowRight,
   Plus,
   Star,
-  Timer,
-  Target,
   Search,
   Filter,
   X,
@@ -27,8 +22,10 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { Recipe } from '@/types/recipe';
+import { UserPreferences } from '@/types/user-preferences';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import Navbar from '@/components/Navbar';
+import RecipeCard from '@/components/RecipeCard';
 
 export default function Recipes() {
   const { data: session } = useSession();
@@ -48,6 +45,7 @@ export default function Recipes() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteAllModal, setShowDeleteAllModal] = useState(false);
   const [isDeletingAll, setIsDeletingAll] = useState(false);
+  const [userPreferences, setUserPreferences] = useState<UserPreferences | null>(null);
   
   const recipesPerPage = 6;
 
@@ -98,6 +96,25 @@ export default function Recipes() {
     }
   }, [session, fetchRecipes]);
 
+  // Cargar preferencias del usuario
+  useEffect(() => {
+    const fetchUserPreferences = async () => {
+      try {
+        const response = await fetch('/api/user/preferences');
+        if (response.ok) {
+          const preferences = await response.json();
+          setUserPreferences(preferences);
+        }
+      } catch (error) {
+        console.error('Error cargando preferencias del usuario:', error);
+      }
+    };
+
+    if (session) {
+      fetchUserPreferences();
+    }
+  }, [session]);
+
   // Limpiar timeout al desmontar el componente
   useEffect(() => {
     return () => {
@@ -116,18 +133,6 @@ export default function Recipes() {
     }
   };
 
-  const getDifficultyColor = (difficulty: string) => {
-    switch (difficulty?.toLowerCase()) {
-      case 'fácil':
-        return 'bg-green-100 text-green-700';
-      case 'medio':
-        return 'bg-yellow-100 text-yellow-700';
-      case 'difícil':
-        return 'bg-red-100 text-red-700';
-      default:
-        return 'bg-gray-100 text-gray-700';
-    }
-  };
 
   // Funciones para filtros y paginación
   const handleIngredientFilter = (ingredient: string) => {
@@ -556,136 +561,41 @@ export default function Recipes() {
               className="grid grid-cols-1 lg:grid-cols-2 gap-8"
             >
               <AnimatePresence>
-                {recipes.map((recipe, index) => {
-                  const ingredients = formatIngredients(recipe.ingredients);
-                  
-                  return (
-                    <motion.div
-                      key={recipe.id}
-                      initial={{ opacity: 0, y: 30 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: index * 0.1 }}
-                      whileHover={{ y: -5 }}
-                      className="bg-white rounded-2xl shadow-soft hover:shadow-strong transition-all duration-300 overflow-hidden border border-primary-200"
-                    >
-                      {/* Recipe Header */}
-                      <div className="bg-gradient-to-r from-primary-500 to-primary-600 p-6 text-white">
-                        <div className="flex items-start justify-between mb-4">
-                          <div className="flex-1">
-                            <h3 className="text-xl font-bold mb-2 line-clamp-2">
-                              {recipe.title}
-                            </h3>
-                            <p className="text-primary-100 text-sm line-clamp-2">
-                              {recipe.description}
-                            </p>
-                          </div>
-                          <div className="ml-4">
-                            <div className="bg-white/20 backdrop-blur-sm rounded-lg p-2">
-                              <ChefHat className="w-6 h-6" />
-                            </div>
-                          </div>
-                        </div>
-                        
-                        {/* Recipe Meta */}
-                        <div className="flex flex-wrap gap-3">
-                          {recipe.cookingTime && (
-                            <div className="flex items-center space-x-1 bg-white/20 backdrop-blur-sm rounded-lg px-3 py-1">
-                              <Clock className="w-4 h-4" />
-                              <span className="text-sm font-medium">{recipe.cookingTime} min</span>
-                            </div>
-                          )}
-                          
-                          {recipe.servings && (
-                            <div className="flex items-center space-x-1 bg-white/20 backdrop-blur-sm rounded-lg px-3 py-1">
-                              <Users className="w-4 h-4" />
-                              <span className="text-sm font-medium">{recipe.servings} porciones</span>
-                            </div>
-                          )}
-                          
-                          {recipe.difficulty && (
-                            <div className={`flex items-center space-x-1 rounded-lg px-3 py-1 ${getDifficultyColor(recipe.difficulty)}`}>
-                              <Target className="w-4 h-4" />
-                              <span className="text-sm font-medium">{recipe.difficulty}</span>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Recipe Content */}
-                      <div className="p-6">
-                        {/* Ingredients */}
-                        <div className="mb-6">
-                          <h4 className="font-semibold text-gray-900 mb-3 flex items-center">
-                            <ChefHat className="w-5 h-5 mr-2 text-primary-600" />
-                            Ingredientes
-                          </h4>
-                          <div className="flex flex-wrap gap-2">
-                            {ingredients.map((ingredient, idx) => (
-                              <span
-                                key={idx}
-                                className="bg-primary-100 text-primary-800 px-3 py-1 rounded-full text-sm font-medium"
-                              >
-                                {ingredient.name}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-
-                        {/* Instructions */}
-                        <div className="mb-6">
-                          <h4 className="font-semibold text-gray-900 mb-3 flex items-center">
-                            <Timer className="w-5 h-5 mr-2 text-primary-600" />
-                            Preparación
-                          </h4>
-                          <div className="bg-gray-100 rounded-xl p-4">
-                            <p className="text-gray-800 text-sm leading-relaxed whitespace-pre-line">
-                              {recipe.instructions}
-                            </p>
-                          </div>
-                        </div>
-
-                        {/* Footer */}
-                        <div className="flex items-center justify-between pt-4 border-t border-gray-100">
-                          <div className="flex items-center space-x-2 text-gray-500">
-                            <Calendar className="w-4 h-4" />
-                            <span className="text-sm">
-                              {new Date(recipe.createdAt).toLocaleDateString('es-ES', {
-                                year: 'numeric',
-                                month: 'long',
-                                day: 'numeric'
-                              })}
-                            </span>
-                          </div>
-                          
-                          <div className="flex items-center space-x-3">
-                            <div className="flex items-center space-x-1 text-accent-600">
-                              <Sparkles className="w-4 h-4" />
-                              <span className="text-sm font-medium">Generada con IA</span>
-                            </div>
-                            
-                            {/* Action Buttons */}
-                            <div className="flex items-center space-x-2">
-                              <button
-                                onClick={() => handleEditRecipe(recipe.id)}
-                                className="p-2 text-gray-500 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
-                                title="Editar receta"
-                              >
-                                <Edit className="w-4 h-4" />
-                              </button>
-                              <button
-                                onClick={() => setDeleteConfirm(recipe.id)}
-                                className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                                title="Eliminar receta"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </motion.div>
-                  );
-                })}
+                {recipes.map((recipe, index) => (
+                  <motion.div
+                    key={recipe.id}
+                    initial={{ opacity: 0, y: 30 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.1 }}
+                    whileHover={{ y: -5 }}
+                    className="relative"
+                  >
+                    {/* Recipe Card */}
+                    <RecipeCard 
+                      recipe={recipe}
+                      showHealthConditions={true}
+                      userPreferences={userPreferences}
+                    />
+                    
+                    {/* Action Buttons Overlay */}
+                    <div className="absolute top-4 right-4 flex items-center space-x-2">
+                      <button
+                        onClick={() => handleEditRecipe(recipe.id)}
+                        className="p-2 bg-white/90 backdrop-blur-sm text-gray-500 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors shadow-medium"
+                        title="Editar receta"
+                      >
+                        <Edit className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => setDeleteConfirm(recipe.id)}
+                        className="p-2 bg-white/90 backdrop-blur-sm text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors shadow-medium"
+                        title="Eliminar receta"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </motion.div>
+                ))}
               </AnimatePresence>
             </motion.div>
           )}

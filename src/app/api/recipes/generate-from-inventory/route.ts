@@ -8,6 +8,7 @@ import {
   handleRecipeError,
   formatInventoryIngredients,
 } from "@/lib/recipeService";
+import { UserPreferences } from "@/types/user-preferences";
 
 // POST - Generar receta basada en inventario disponible
 export async function POST(request: NextRequest) {
@@ -59,6 +60,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Obtener preferencias del usuario
+    const userPreferences = await prisma.userPreferences.findUnique({
+      where: {
+        userId: authResult.userId!,
+      },
+    });
+
+    console.log("🔍 DEBUG: Preferencias del usuario:", userPreferences);
+    console.log("🔍 DEBUG: Health conditions:", userPreferences?.healthConditions);
+    console.log("🔍 DEBUG: Custom health conditions:", userPreferences?.customHealthConditions);
+    console.log("🔍 DEBUG: User ID:", authResult.userId);
+    console.log("🔍 DEBUG: Preferencias completas:", JSON.stringify(userPreferences, null, 2));
+
     console.log(
       `Generando receta para ${mealType} con ${inventory.length} ingredientes en inventario`
     );
@@ -90,6 +104,7 @@ export async function POST(request: NextRequest) {
           customDescription,
           preferredIngredients,
           userId: authResult.userId!, // Pasar userId para análisis de recetas existentes
+          userPreferences: userPreferences as UserPreferences, // Pasar preferencias del usuario
         }
       );
 
@@ -102,13 +117,23 @@ export async function POST(request: NextRequest) {
       };
 
       // Crear receta usando función centralizada
+      console.log("🔍 DEBUG: Creando receta con preferencias:", {
+        healthConditions: userPreferences?.healthConditions || [],
+        customHealthConditions: userPreferences?.customHealthConditions || [],
+        userPreferences
+      });
+      
       const recipeResult = await createRecipe(recipeDataWithDefaults, {
         ingredients: ingredientsWithQuantities,
         userId: authResult.userId!,
         customTitle,
         customDescription,
         customServings: servings,
+        healthConditions: userPreferences?.healthConditions || [],
+        customHealthConditions: userPreferences?.customHealthConditions || [],
       });
+      
+      console.log("🔍 DEBUG: Resultado de creación de receta:", recipeResult);
 
       return { recipeResult, recipeData };
     })();

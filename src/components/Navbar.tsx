@@ -14,7 +14,6 @@ import {
   X,
   Shield,
   Calendar,
-  Apple,
 } from "lucide-react";
 import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
@@ -57,6 +56,13 @@ export default function Navbar() {
                 >
                   <Settings className="w-4 h-4" />
                   <span>Dashboard</span>
+                </Link>
+                <Link
+                  href="/profile"
+                  className="flex items-center space-x-2 px-4 py-2 text-gray-600 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all duration-200"
+                >
+                  <User className="w-4 h-4" />
+                  <span>Perfil</span>
                 </Link>
                 <Link
                   href="/meal-planner"
@@ -157,6 +163,14 @@ export default function Navbar() {
                   >
                     <Settings className="w-5 h-5" />
                     <span>Dashboard</span>
+                  </Link>
+                  <Link
+                    href="/profile"
+                    className="flex items-center space-x-2 px-4 py-3 text-gray-600 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all duration-200"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                  >
+                    <User className="w-5 h-5" />
+                    <span>Perfil</span>
                   </Link>
                   <Link
                     href="/meal-planner"

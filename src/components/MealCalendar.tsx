@@ -28,6 +28,8 @@ import {
   MEAL_TYPE_LABELS,
 } from "@/types/meal-calendar";
 import { Recipe } from "@/types/recipe";
+import { UserPreferences } from "@/types/user-preferences";
+import RecipeCard from "@/components/RecipeCard";
 
 // Iconos de Lucide para tipos de comida
 const MEAL_TYPE_LUCIDE_ICONS: Record<
@@ -48,6 +50,7 @@ export default function MealCalendar({ recipes }: MealCalendarProps) {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [meals, setMeals] = useState<MealCalendarItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [userPreferences, setUserPreferences] = useState<UserPreferences | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingMeal, setEditingMeal] = useState<MealCalendarItem | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
@@ -107,6 +110,23 @@ export default function MealCalendar({ recipes }: MealCalendarProps) {
   useEffect(() => {
     fetchMeals();
   }, [fetchMeals]);
+
+  // Cargar preferencias del usuario
+  useEffect(() => {
+    const fetchUserPreferences = async () => {
+      try {
+        const response = await fetch('/api/user/preferences');
+        if (response.ok) {
+          const preferences = await response.json();
+          setUserPreferences(preferences);
+        }
+      } catch (error) {
+        console.error('Error cargando preferencias del usuario:', error);
+      }
+    };
+
+    fetchUserPreferences();
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1034,112 +1054,36 @@ export default function MealCalendar({ recipes }: MealCalendarProps) {
               {/* Recipe Details */}
               {selectedRecipeMeal.recipe && (
                 <div className="space-y-6">
-                  {/* Recipe Info */}
+                  {/* Recipe Card */}
+                  <RecipeCard 
+                    recipe={selectedRecipeMeal.recipe as Recipe}
+                    showHealthConditions={true}
+                    userPreferences={userPreferences}
+                  />
+
+                  {/* Completion Status */}
                   <div className="bg-gray-50 rounded-lg p-4">
-                    <h4 className="font-semibold text-gray-900 mb-3">
-                      Información de la Receta
-                    </h4>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="flex items-center space-x-2">
-                        <Clock className="w-4 h-4 text-gray-600" />
-                        <span className="text-sm text-gray-700">
-                          {selectedRecipeMeal.recipe.cookingTime} min
-                        </span>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <ChefHat className="w-4 h-4 text-gray-600" />
-                        <span className="text-sm text-gray-700">
-                          {selectedRecipeMeal.recipe.difficulty}
-                        </span>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <Utensils className="w-4 h-4 text-gray-600" />
-                        <span className="text-sm text-gray-700">
-                          {selectedRecipeMeal.recipe.servings} porciones
-                        </span>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <CheckCircle
-                          className={`w-4 h-4 ${
-                            selectedRecipeMeal.isCompleted
-                              ? "text-green-600"
-                              : "text-gray-400"
-                          }`}
-                        />
-                        <span
-                          className={`text-sm ${
-                            selectedRecipeMeal.isCompleted
-                              ? "text-green-700"
-                              : "text-gray-700"
-                          }`}
-                        >
-                          {selectedRecipeMeal.isCompleted
-                            ? "Completada"
-                            : "Pendiente"}
-                        </span>
-                      </div>
+                    <div className="flex items-center space-x-2">
+                      <CheckCircle
+                        className={`w-5 h-5 ${
+                          selectedRecipeMeal.isCompleted
+                            ? "text-green-600"
+                            : "text-gray-400"
+                        }`}
+                      />
+                      <span
+                        className={`text-sm font-medium ${
+                          selectedRecipeMeal.isCompleted
+                            ? "text-green-700"
+                            : "text-gray-700"
+                        }`}
+                      >
+                        {selectedRecipeMeal.isCompleted
+                          ? "Completada"
+                          : "Pendiente"}
+                      </span>
                     </div>
                   </div>
-
-                  {/* Description */}
-                  {selectedRecipeMeal.recipe.description && (
-                    <div>
-                      <h4 className="font-semibold text-gray-900 mb-2">
-                        Descripción
-                      </h4>
-                      <p className="text-gray-700 text-sm leading-relaxed">
-                        {selectedRecipeMeal.recipe.description}
-                      </p>
-                    </div>
-                  )}
-
-                  {/* Ingredients */}
-                  {selectedRecipeMeal.recipe.ingredients && (
-                    <div>
-                      <h4 className="font-semibold text-gray-900 mb-3">
-                        Ingredientes
-                      </h4>
-                      <div className="flex flex-wrap gap-2">
-                        {(() => {
-                          try {
-                            const ingredients = JSON.parse(
-                              selectedRecipeMeal.recipe.ingredients
-                            );
-                            return ingredients.map(
-                              (ingredient: { name: string }, index: number) => (
-                                <span
-                                  key={index}
-                                  className="px-3 py-1 bg-primary-100 text-primary-800 text-sm rounded-full border border-primary-200"
-                                >
-                                  {ingredient.name}
-                                </span>
-                              )
-                            );
-                          } catch {
-                            return (
-                              <span className="text-gray-600 text-sm">
-                                {selectedRecipeMeal.recipe.ingredients}
-                              </span>
-                            );
-                          }
-                        })()}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Instructions */}
-                  {selectedRecipeMeal.recipe.instructions && (
-                    <div>
-                      <h4 className="font-semibold text-gray-900 mb-3">
-                        Instrucciones
-                      </h4>
-                      <div className="bg-gray-50 rounded-lg p-4">
-                        <p className="text-gray-800 text-sm leading-relaxed whitespace-pre-line">
-                          {selectedRecipeMeal.recipe.instructions}
-                        </p>
-                      </div>
-                    </div>
-                  )}
 
                   {/* Notes */}
                   {selectedRecipeMeal.notes && (

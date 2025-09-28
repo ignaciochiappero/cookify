@@ -1,129 +1,103 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
-import prisma from '@/lib/prisma';
+import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import prisma from "@/lib/prisma";
 
-// GET /api/user/preferences - Obtener preferencias del usuario
 export async function GET() {
   try {
     const session = await getServerSession(authOptions);
-
+    
     if (!session?.user?.id) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'No autorizado'
-        },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
-    const preferences = await prisma.userFoodPreference.findMany({
-      where: {
-        userId: session.user.id
-      },
-      include: {
-        food: true
-      },
-      orderBy: {
-        createdAt: 'desc'
-      }
+    const preferences = await prisma.userPreferences.findUnique({
+      where: { userId: session.user.id }
     });
 
-    return NextResponse.json({
-      success: true,
-      data: preferences
-    });
+    console.log("🔍 DEBUG: Preferencias encontradas:", preferences);
+    console.log("🔍 DEBUG: Health conditions en DB:", preferences?.healthConditions);
+    console.log("🔍 DEBUG: Custom health conditions en DB:", preferences?.customHealthConditions);
+
+    if (!preferences) {
+      return NextResponse.json({ error: "Preferencias no encontradas" }, { status: 404 });
+    }
+
+    return NextResponse.json(preferences);
   } catch (error) {
-    console.error('Error al obtener preferencias:', error);
+    console.error("Error fetching user preferences:", error);
     return NextResponse.json(
-      {
-        success: false,
-        error: 'Error interno del servidor'
-      },
+      { error: "Error interno del servidor" },
       { status: 500 }
     );
   }
 }
 
-// POST /api/user/preferences - Crear o actualizar preferencia
-export async function POST(request: NextRequest) {
+export async function PUT(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-
+    
     if (!session?.user?.id) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'No autorizado'
-        },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
     const body = await request.json();
-    const { foodId, isAvailable } = body;
+    console.log("Datos recibidos:", body);
+    
+    const {
+      healthConditions,
+      customHealthConditions,
+      personalGoals,
+      customPersonalGoals,
+      cookingSkill,
+      cookingTime,
+      servings,
+      country,
+      locationEnabled
+    } = body;
 
-    if (!foodId || typeof isAvailable !== 'boolean') {
+    // Validar datos
+    if (!cookingSkill || !cookingTime || !servings) {
       return NextResponse.json(
-        {
-          success: false,
-          error: 'foodId e isAvailable son requeridos'
-        },
+        { error: "Datos requeridos faltantes" },
         { status: 400 }
       );
     }
 
-    // Verificar que la verdura existe
-    const food = await prisma.food.findUnique({
-      where: { id: foodId }
-    });
-
-    if (!food) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Verdura no encontrada'
-        },
-        { status: 404 }
-      );
-    }
-
-    // Crear o actualizar preferencia
-    const preference = await prisma.userFoodPreference.upsert({
-      where: {
-        userId_foodId: {
-          userId: session.user.id,
-          foodId: foodId
-        }
-      },
+    const preferences = await prisma.userPreferences.upsert({
+      where: { userId: session.user.id },
       update: {
-        isAvailable
+        healthConditions: healthConditions || [],
+        customHealthConditions: customHealthConditions || [],
+        personalGoals: personalGoals || [],
+        customPersonalGoals: customPersonalGoals || [],
+        cookingSkill,
+        cookingTime,
+        servings,
+        country: country || null,
+        locationEnabled: locationEnabled || false,
+        updatedAt: new Date()
       },
       create: {
         userId: session.user.id,
-        foodId: foodId,
-        isAvailable
-      },
-      include: {
-        food: true
+        healthConditions: healthConditions || [],
+        customHealthConditions: customHealthConditions || [],
+        personalGoals: personalGoals || [],
+        customPersonalGoals: customPersonalGoals || [],
+        cookingSkill,
+        cookingTime,
+        servings,
+        country: country || null,
+        locationEnabled: locationEnabled || false
       }
     });
 
-    return NextResponse.json(
-      {
-        success: true,
-        data: preference,
-        message: 'Preferencia actualizada exitosamente'
-      }
-    );
+    console.log("Preferencias guardadas:", preferences);
+    return NextResponse.json(preferences);
   } catch (error) {
-    console.error('Error al actualizar preferencia:', error);
+    console.error("Error updating user preferences:", error);
     return NextResponse.json(
-      {
-        success: false,
-        error: 'Error interno del servidor'
-      },
+      { error: "Error interno del servidor" },
       { status: 500 }
     );
   }

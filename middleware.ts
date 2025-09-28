@@ -23,7 +23,7 @@ export default withAuth(
 
     // Si está autenticado pero no es admin y trata de acceder a admin
     if (isAuth && isAdminPage && token?.role !== 'ADMIN') {
-      return NextResponse.redirect(new URL('/', req.url));
+      return NextResponse.redirect(new URL('/dashboard', req.url));
     }
 
     return NextResponse.next();

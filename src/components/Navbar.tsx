@@ -47,13 +47,7 @@ export default function Navbar() {
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-1">
-            <Link
-              href="/"
-              className="flex items-center space-x-2 px-4 py-2 text-gray-600 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all duration-200"
-            >
-              <Home className="w-4 h-4" />
-              <span>Inicio</span>
-            </Link>
+
 
             {session && (
               <>

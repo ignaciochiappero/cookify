@@ -32,7 +32,7 @@ export default function SignIn() {
         // Verificar la sesión y redirigir
         const session = await getSession();
         if (session) {
-          router.push('/');
+          router.push('/dashboard');
           router.refresh();
         }
       }

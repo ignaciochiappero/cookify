@@ -14,17 +14,44 @@ import {
   X,
   Shield,
   Calendar,
+  Bell,
+  Users,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
+import NotificationDropdown from "./NotificationDropdown";
 
 export default function Navbar() {
   const { session, isAuthenticated, isAdmin } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isNotificationOpen, setIsNotificationOpen] = useState(false);
+  const [notificationCount, setNotificationCount] = useState(0);
 
   const toggleMobileMenu = () => {
     setIsMobileMenuOpen(!isMobileMenuOpen);
   };
+
+  // Fetch notification count
+  useEffect(() => {
+    if (isAuthenticated) {
+      const fetchNotificationCount = async () => {
+        try {
+          const response = await fetch('/api/notifications?limit=1');
+          if (response.ok) {
+            const data = await response.json();
+            setNotificationCount(data.counts.unread);
+          }
+        } catch (error) {
+          console.error('Error fetching notification count:', error);
+        }
+      };
+
+      fetchNotificationCount();
+      // Poll for new notifications every 30 seconds
+      const interval = setInterval(fetchNotificationCount, 30000);
+      return () => clearInterval(interval);
+    }
+  }, [isAuthenticated]);
 
   return (
     <motion.nav
@@ -78,6 +105,20 @@ export default function Navbar() {
                   <BookOpen className="w-4 h-4" />
                   <span>Recetas</span>
                 </Link>
+                <Link
+                  href="/juntadas"
+                  className="flex items-center space-x-2 px-4 py-2 text-gray-600 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all duration-200"
+                >
+                  <Users className="w-4 h-4" />
+                  <span>Juntadas</span>
+                </Link>
+                <Link
+                  href="/eventos"
+                  className="flex items-center space-x-2 px-4 py-2 text-gray-600 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all duration-200"
+                >
+                  <Calendar className="w-4 h-4" />
+                  <span>Eventos</span>
+                </Link>
               </>
             )}
           </div>
@@ -86,6 +127,27 @@ export default function Navbar() {
           <div className="hidden md:flex items-center space-x-4">
             {isAuthenticated ? (
               <div className="flex items-center space-x-3">
+                {/* Notifications Button */}
+                <div className="relative">
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => setIsNotificationOpen(!isNotificationOpen)}
+                    className="relative p-2 text-gray-600 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all duration-200"
+                  >
+                    <Bell className="w-5 h-5" />
+                    {notificationCount > 0 && (
+                      <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                        {notificationCount > 9 ? '9+' : notificationCount}
+                      </span>
+                    )}
+                  </motion.button>
+                  <NotificationDropdown
+                    isOpen={isNotificationOpen}
+                    onClose={() => setIsNotificationOpen(false)}
+                  />
+                </div>
+
                 <div className="flex items-center space-x-2 bg-gray-50 rounded-lg px-3 py-2">
                   <User className="w-4 h-4 text-gray-500" />
                   <div className="text-sm">
@@ -187,6 +249,22 @@ export default function Navbar() {
                   >
                     <BookOpen className="w-5 h-5" />
                     <span>Recetas</span>
+                  </Link>
+                  <Link
+                    href="/juntadas"
+                    className="flex items-center space-x-2 px-4 py-3 text-gray-600 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all duration-200"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                  >
+                    <Users className="w-5 h-5" />
+                    <span>Juntadas</span>
+                  </Link>
+                  <Link
+                    href="/eventos"
+                    className="flex items-center space-x-2 px-4 py-3 text-gray-600 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all duration-200"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                  >
+                    <Calendar className="w-5 h-5" />
+                    <span>Eventos</span>
                   </Link>
                 </>
               )}

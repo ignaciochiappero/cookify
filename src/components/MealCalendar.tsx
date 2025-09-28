@@ -20,6 +20,7 @@ import {
   Edit,
   RotateCcw,
   Eye,
+  Users,
 } from "lucide-react";
 import {
   MealCalendarItem,
@@ -781,7 +782,11 @@ export default function MealCalendar({ recipes }: MealCalendarProps) {
                         isSmartPlannerOpen && isSlotSelected(day.date, mealType)
                           ? "bg-purple-200 text-purple-800 border-2 border-purple-400 ring-2 ring-purple-200"
                           : meal
-                          ? meal.isCompleted
+                          ? meal.recipe?.title?.toLowerCase().includes('colaborativa')
+                            ? meal.isCompleted
+                              ? "bg-red-100 text-red-800 border border-red-200"
+                              : "bg-red-200 text-red-900 border-2 border-red-300"
+                            : meal.isCompleted
                             ? "bg-green-100 text-green-800 border border-green-200"
                             : "bg-primary-100 text-primary-800 border border-primary-200"
                           : "bg-gray-50 text-gray-400 hover:bg-gray-100 hover:text-gray-600 border border-gray-200"
@@ -817,9 +822,16 @@ export default function MealCalendar({ recipes }: MealCalendarProps) {
                               MEAL_TYPE_LABELS[mealType]
                             : MEAL_TYPE_LABELS[mealType]}
                         </span>
-                        {meal?.isCompleted && (
-                          <CheckCircle className="w-3 h-3 text-green-600 flex-shrink-0" />
-                        )}
+                        <div className="flex items-center space-x-1">
+                          {meal?.recipe?.title?.toLowerCase().includes('colaborativa') && (
+                            <div title="Evento colaborativo">
+                              <Users className="w-3 h-3 text-red-600" />
+                            </div>
+                          )}
+                          {meal?.isCompleted && (
+                            <CheckCircle className="w-3 h-3 text-green-600 flex-shrink-0" />
+                          )}
+                        </div>
                       </div>
                     </motion.div>
                   );
@@ -1020,16 +1032,24 @@ export default function MealCalendar({ recipes }: MealCalendarProps) {
                     <Eye className="w-6 h-6 text-primary-600" />
                   </div>
                   <div>
-                    <h3 className="text-xl font-bold text-gray-900">
-                      {(() => {
-                        console.log("🔍 DEBUG: selectedRecipeMeal:", selectedRecipeMeal);
-                        console.log("🔍 DEBUG: selectedRecipeMeal.recipe:", selectedRecipeMeal.recipe);
-                        console.log("🔍 DEBUG: selectedRecipeMeal.recipe?.title:", selectedRecipeMeal.recipe?.title);
-                        return selectedRecipeMeal.recipe?.title ||
-                          selectedRecipeMeal.customMealName ||
-                          "Comida Programada";
-                      })()}
-                    </h3>
+                    <div className="flex items-center space-x-2">
+                      <h3 className="text-xl font-bold text-gray-900">
+                        {(() => {
+                          console.log("🔍 DEBUG: selectedRecipeMeal:", selectedRecipeMeal);
+                          console.log("🔍 DEBUG: selectedRecipeMeal.recipe:", selectedRecipeMeal.recipe);
+                          console.log("🔍 DEBUG: selectedRecipeMeal.recipe?.title:", selectedRecipeMeal.recipe?.title);
+                          return selectedRecipeMeal.recipe?.title ||
+                            selectedRecipeMeal.customMealName ||
+                            "Comida Programada";
+                        })()}
+                      </h3>
+                      {selectedRecipeMeal.recipe?.title?.toLowerCase().includes('colaborativa') && (
+                        <div className="flex items-center space-x-1 bg-red-100 text-red-800 px-2 py-1 rounded-full text-xs font-medium">
+                          <Users className="w-3 h-3" />
+                          <span>Evento Colaborativo</span>
+                        </div>
+                      )}
+                    </div>
                     <p className="text-sm text-gray-600">
                       {new Date(selectedRecipeMeal.date).toLocaleDateString(
                         "es-ES",

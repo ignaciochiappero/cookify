@@ -83,6 +83,17 @@ model User {
   // Relación con preferencias de usuario
   userPreferences UserPreferences?
   
+  // Relación con sistema de amistades
+  sentFriendRequests FriendRequest[] @relation("SentFriendRequests")
+  receivedFriendRequests FriendRequest[] @relation("ReceivedFriendRequests")
+  friendships1 Friendship[] @relation("User1Friendships")
+  friendships2 Friendship[] @relation("User2Friendships")
+  
+  // Relación con eventos/juntadas
+  createdEvents Event[] @relation("EventCreator")
+  eventParticipants EventParticipant[]
+  notifications Notification[]
+  
   // Relación con sesiones de NextAuth
   accounts Account[]
   sessions Session[]
@@ -119,6 +130,7 @@ model Recipe {
   
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   mealCalendar MealCalendar[]
+  events Event[]
 }
 
 enum UserRole {
@@ -234,4 +246,102 @@ model UserPreferences {
   
   // Relación con el usuario
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// Modelo para solicitudes de amistad
+model FriendRequest {
+  id String @id @default(uuid())
+  senderId String
+  receiverId String
+  status FriendRequestStatus @default(PENDING)
+  message String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  sender User @relation("SentFriendRequests", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver User @relation("ReceivedFriendRequests", fields: [receiverId], references: [id], onDelete: Cascade)
+  
+  @@unique([senderId, receiverId])
+}
+
+enum FriendRequestStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+}
+
+// Modelo para amistades establecidas
+model Friendship {
+  id String @id @default(uuid())
+  user1Id String
+  user2Id String
+  createdAt DateTime @default(now())
+  
+  user1 User @relation("User1Friendships", fields: [user1Id], references: [id], onDelete: Cascade)
+  user2 User @relation("User2Friendships", fields: [user2Id], references: [id], onDelete: Cascade)
+  
+  @@unique([user1Id, user2Id])
+}
+
+// Modelo para eventos/juntadas
+model Event {
+  id String @id @default(uuid())
+  title String
+  description String?
+  date DateTime
+  mealType MealType
+  location String?
+  maxParticipants Int?
+  isActive Boolean @default(true)
+  creatorId String
+  recipeId String? // Receta generada para el evento
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  creator User @relation("EventCreator", fields: [creatorId], references: [id], onDelete: Cascade)
+  participants EventParticipant[]
+  recipe Recipe? @relation(fields: [recipeId], references: [id], onDelete: SetNull)
+}
+
+// Modelo para participantes de eventos
+model EventParticipant {
+  id String @id @default(uuid())
+  eventId String
+  userId String
+  status EventParticipantStatus @default(INVITED)
+  joinedAt DateTime?
+  createdAt DateTime @default(now())
+  
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([eventId, userId])
+}
+
+enum EventParticipantStatus {
+  INVITED
+  ACCEPTED
+  DECLINED
+}
+
+// Modelo para notificaciones
+model Notification {
+  id String @id @default(uuid())
+  userId String
+  type NotificationType
+  title String
+  message String
+  isRead Boolean @default(false)
+  relatedId String? // ID del elemento relacionado (evento, solicitud, etc.)
+  createdAt DateTime @default(now())
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+enum NotificationType {
+  FRIEND_REQUEST
+  FRIEND_REQUEST_ACCEPTED
+  EVENT_INVITATION
+  EVENT_CANCELLED
+  EVENT_RECIPE_GENERATED
 }
